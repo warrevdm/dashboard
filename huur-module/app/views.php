@@ -42,6 +42,7 @@ function render_header(string $title, bool $showNav = true): void
                 <span class="sr-only"><?= e($appName) ?></span>
             </a>
             <nav>
+                <a href="/home/">Dashboard</a>
                 <?php if (!is_finance()): ?>
                     <a href="planning.php">Planning</a>
                     <a href="reservation-new.php">Nieuwe verhuur</a>

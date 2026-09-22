@@ -125,7 +125,7 @@ $mailHistory = $pdo->query("SELECT ml.id,ml.customer_name,ml.customer_email,ml.b
 <main class="admin-shell">
     <header class="topbar">
         <div class="topbar-brand"><img src="assets/aab-logo.svg" alt="Aerts Action Bike"><div><strong>Admin dashboard</strong><small><?= htmlspecialchars((string) $admin['name'], ENT_QUOTES, 'UTF-8') ?> · Admin</small></div></div>
-        <nav><a class="button button-secondary" href="index.php">Mailingtool</a><a class="button button-secondary" href="logout.php">Uitloggen</a></nav>
+        <nav><a class="button button-secondary" href="/home/">Dashboard</a><a class="button button-secondary" href="index.php">Mailingtool</a><a class="button button-secondary" href="logout.php">Uitloggen</a></nav>
     </header>
 
     <?php if ($message !== ''): ?><div class="alert success"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>

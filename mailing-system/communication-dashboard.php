@@ -73,6 +73,7 @@ function dashboardMailType(string $subject): string
     </div>
 
     <nav class="topbar-actions">
+        <a class="button button-secondary" href="/home/">Dashboard</a>
         <?php if (($currentUser['role'] ?? '') === 'admin'): ?><a class="button button-secondary" href="admin.php">Gebruikersbeheer</a><?php endif; ?>
         <a class="button button-secondary" href="logout.php">Uitloggen</a>
     </nav>
