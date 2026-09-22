@@ -1,0 +1,10 @@
+{
+  "name": "aerts-action-bike/fiets-klaar-mailer",
+  "description": "Interne webapp om klanten via Microsoft Graph te mailen wanneer hun fiets klaarstaat.",
+  "require": {
+    "php": ">=8.1",
+    "ext-curl": "*",
+    "ext-json": "*",
+    "ext-mbstring": "*"
+  }
+}

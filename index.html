@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Aerts Action Bike — Verkeerde afslag</title>
+  <meta name="theme-color" content="#60bb46">
+  <style>
+    :root {
+      --green:#60bb46; --green-dark:#459934; --ink:#161916;
+      --muted:#737972; --bg:#f4f6f2; --border:rgba(22,25,22,.10);
+      --shadow:0 28px 80px rgba(22,30,22,.12);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;font-family:Inter,Arial,Helvetica,sans-serif;color:var(--ink);background:var(--bg)}
+    body{min-height:100vh;overflow-x:hidden}
+    .page{
+      min-height:100vh;position:relative;display:grid;place-items:center;padding:30px 20px 88px;overflow:hidden;
+      background:
+        radial-gradient(circle at 15% 8%,rgba(96,187,70,.17),transparent 27%),
+        radial-gradient(circle at 88% 88%,rgba(96,187,70,.11),transparent 25%),
+        linear-gradient(180deg,#f9faf8 0%,#f1f4ef 100%);
+    }
+    .route{position:absolute;inset:-15%;pointer-events:none;opacity:.65}
+    .route:before,.route:after{content:"";position:absolute;border:3px dashed rgba(96,187,70,.16);border-radius:50%}
+    .route:before{width:56vw;height:120vh;left:-20vw;top:-20vh;transform:rotate(22deg)}
+    .route:after{width:50vw;height:115vh;right:-18vw;bottom:-34vh;transform:rotate(-18deg)}
+    .wrap{width:min(980px,100%);position:relative;z-index:1}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:18px}
+    .logo{display:block;width:220px;max-width:58vw;height:auto}
+    .domain{font-size:12px;color:var(--muted);padding:8px 12px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,.65)}
+    .card{border:1px solid var(--border);border-radius:30px;background:rgba(255,255,255,.90);box-shadow:var(--shadow);overflow:hidden}
+    .grid{display:grid;grid-template-columns:1.12fr .88fr;min-height:545px}
+    .content{padding:58px 54px;display:flex;flex-direction:column;justify-content:center}
+    .eyebrow{display:inline-flex;align-items:center;gap:10px;color:var(--green-dark);font-size:14px;font-weight:800;margin-bottom:18px}
+    .dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 0 6px rgba(96,187,70,.12)}
+    h1{margin:0 0 18px;max-width:620px;font-size:clamp(44px,7vw,78px);line-height:.94;letter-spacing:-.06em}
+    .lead{margin:0 0 28px;max-width:590px;color:var(--muted);font-size:18px;line-height:1.65}
+    .btn{display:inline-flex;align-items:center;gap:10px;padding:15px 19px;border-radius:14px;font-weight:850;text-decoration:none;background:var(--green);color:#fff;box-shadow:0 14px 30px rgba(96,187,70,.25);transition:.18s}
+    .btn:hover{transform:translateY(-2px);box-shadow:0 18px 38px rgba(96,187,70,.31)}
+    .redirect{margin-top:19px;font-size:13px;color:var(--muted)}
+    .count{font-weight:800;color:var(--ink)}
+    .visual{position:relative;min-height:100%;background:linear-gradient(155deg,rgba(96,187,70,.98),rgba(71,155,52,.98));display:flex;align-items:center;justify-content:center;overflow:hidden;padding:36px}
+    .visual:before,.visual:after{content:"";position:absolute;border:2px dashed rgba(255,255,255,.22);border-radius:50%}
+    .visual:before{width:410px;height:410px;transform:rotate(20deg)}
+    .visual:after{width:270px;height:270px;transform:rotate(-18deg)}
+    .sign{width:min(290px,90%);position:relative;z-index:2;padding:28px 26px;border-radius:22px;background:rgba(255,255,255,.96);box-shadow:0 26px 60px rgba(24,55,20,.20);transform:rotate(-3deg);text-align:center}
+    .sign-icon{width:76px;height:76px;margin:0 auto 18px;border-radius:50%;display:grid;place-items:center;background:#eef8eb;color:var(--green-dark);font-size:34px}
+    .sign strong{display:block;font-size:23px;line-height:1.1;letter-spacing:-.03em;margin-bottom:8px}
+    .sign span{display:block;color:var(--muted);line-height:1.5;font-size:14px}
+    .staff{margin-top:18px;display:flex;justify-content:flex-end}
+    .staff-link{padding:8px 4px;color:#8a9089;font-size:12px;text-decoration:none;opacity:.7;transition:.18s}
+    .staff-link:hover{opacity:1;color:var(--ink)}
+    .staff-link:before{content:"↳ "}
+    @media(max-width:760px){
+      .page{padding-top:22px;padding-bottom:55px} .domain{display:none}
+      .grid{grid-template-columns:1fr} .content{padding:42px 28px 36px}
+      .visual{min-height:260px} h1{font-size:clamp(46px,14vw,65px)} .lead{font-size:16px}
+      .staff{justify-content:center}
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="route"></div>
+    <div class="wrap">
+      <div class="topbar">
+        <img class="logo" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyBpZD0iTGFhZ18xIiBkYXRhLW5hbWU9IkxhYWcgMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgNjI0Ljc2IDIzOS44MiI+CiAgPGRlZnM+CiAgICA8c3R5bGU+CiAgICAgIC5jbHMtMSB7CiAgICAgICAgZmlsbDogIzFkMWQxYjsKICAgICAgfQoKICAgICAgLmNscy0yIHsKICAgICAgICBmaWxsOiAjNjViMzJlOwogICAgICB9CgogICAgICAuY2xzLTMgewogICAgICAgIGZpbGw6ICM2NmIzMmU7CiAgICAgIH0KICAgIDwvc3R5bGU+CiAgPC9kZWZzPgogIDxwb2x5Z29uIGNsYXNzPSJjbHMtMiIgcG9pbnRzPSIxNDAuMTcgNjEuNiA3OC4zNiAwIDc5LjU2IDE4LjIgMTI5LjM3IDY3LjkgMTQwLjE3IDYxLjYiLz4KICA8cG9seWdvbiBjbGFzcz0iY2xzLTIiIHBvaW50cz0iMjM4LjAzIDE4My4yMiAxODMuODQgMTE3Ljg0IDE3Ni4yNiAxMjYuOTMgMjIwLjA5IDE3OS41NiAyMzguMDMgMTgzLjIyIi8+CiAgPHBvbHlnb24gY2xhc3M9ImNscy0yIiBwb2ludHM9IjE2OC45MyAxMzUuNzIgMTYxLjYgMTQ0LjUyIDE4NC43OCAxNzIuMzUgMjAyLjQzIDE3NS45NSAxNjguOTMgMTM1LjcyIi8+CiAgPHBvbHlnb24gY2xhc3M9ImNscy0yIiBwb2ludHM9IjExOS4wNyA3My45MSA4MC43MSAzNS42NCA4MS44NiA1My4wOCAxMDguNzcgNzkuOTMgMTE5LjA3IDczLjkxIi8+CiAgPHBvbHlnb24gY2xhc3M9ImNscy0yIiBwb2ludHM9IjgzLjAxIDcwLjUyIDg0LjQ4IDkyLjc0IDk5LjM5IDg2Ljg2IDgzLjAxIDcwLjUyIi8+CiAgPHBvbHlnb24gY2xhc3M9ImNscy0zIiBwb2ludHM9IjE0OS40NiAxNjUuMTMgMTY3LjEyIDE2OC43NCAxNTMuODEgMTUyLjc2IDE0Ni4wMyAxNjQuNDMgMTQ5LjQ2IDE2NS4xMyIvPgogIDxwb2x5Z29uIGNsYXNzPSJjbHMtMSIgcG9pbnRzPSI5OS4zOSA4Ni44NiA4NC40OCA5Mi43NCAwIDEyNy4zMiA4My41NCAxNDEuNzkgMjE5LjYgNDIuNDEgMjMwLjExIDMzLjc2IDk5LjM5IDg2Ljg2Ii8+CiAgPHBvbHlnb24gY2xhc3M9ImNscy0yIiBwb2ludHM9IjIzMC4xMSAzMy43NiAyMTkuNiA0Mi40MSA4OS4yNSAxNTEuMTMgOTQuMTUgMjM5LjgyIDE0Ni4wMyAxNjQuNDMgMTUzLjgxIDE1Mi43NiAxNzcuNDEgMTEzLjY1IDIzMC4xMSAzMy43NiIvPgogIDxwb2x5Z29uIGNsYXNzPSJjbHMtMiIgcG9pbnRzPSI5OS4zOSA4Ni44NiA4NC40OCA5Mi43NCAwIDEyNy4zMiAzNi44NiAxMzMuNyAyMzAuMTEgMzMuNzYgOTkuMzkgODYuODYiLz4KICA8cG9seWdvbiBjbGFzcz0iY2xzLTEiIHBvaW50cz0iOTIuMDYgMjAxLjkyIDk0LjE1IDIzOS44MiAxNDYuMDMgMTY0LjQzIDE1My44MSAxNTIuNzYgMTc3LjQxIDExMy42NSAyMzAuMTEgMzMuNzYgOTIuMDYgMjAxLjkyIi8+CiAgPHBvbHlnb24gY2xhc3M9ImNscy0zIiBwb2ludHM9IjE4My44NCAxMTcuODQgMTc2LjI2IDEyNi45MyAxODMuMDQgMTM1LjA3IDE5MC45MSAxMjYuMzcgMTgzLjg0IDExNy44NCIvPgogIDxwb2x5Z29uIGNsYXNzPSJjbHMtMyIgcG9pbnRzPSIxNjEuNiAxNDQuNTIgMTY3Ljc5IDE1MS45NSAxNzUuNDEgMTQzLjUxIDE2OC45MyAxMzUuNzIgMTYxLjYgMTQ0LjUyIi8+CiAgPHBvbHlnb24gY2xhc3M9ImNscy0yIiBwb2ludHM9IjE0Ni4wMyAxNjQuNDMgMTQ5LjQ2IDE2NS4xMyAxNTQuODggMTY2LjI0IDE2MC4xNiAxNjAuMzkgMTUzLjgxIDE1Mi43NiAxNDYuMDMgMTY0LjQzIi8+CiAgPHBvbHlnb24gY2xhc3M9ImNscy0zIiBwb2ludHM9IjEyMy4yOSA2MS44MyAxMjkuMzcgNjcuOSAxNDAuMTcgNjEuNiAxMzMuNCA1NC44NiAxMjMuMjkgNjEuODMiLz4KICA8cG9seWdvbiBjbGFzcz0iY2xzLTMiIHBvaW50cz0iMTA4Ljc3IDc5LjkzIDExOS4wNyA3My45MSAxMTMuNjMgNjguNDggMTAzLjk2IDc1LjEzIDEwOC43NyA3OS45MyIvPgogIDxwb2x5Z29uIGNsYXNzPSJjbHMtMyIgcG9pbnRzPSI4NC40OCA5Mi43NCA5OS4zOSA4Ni44NiA5NC4yOSA4MS43OCA4NC4yMSA4OC43MiA4NC40OCA5Mi43NCIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMiIgZD0iTTI2MC42LDEwNWwtNy4wNCwxMC4yNy0yMi4yNC0uMjksNDIuNjctNjAuMzgsMzMuNzgtMS40LDQuNDksNjIuODEtMjEuODEtLjI4LS44OS0xMC42NS0yOC45Ni0uMDlaTTI4Ny40NSw2Ni4zNmgtLjIycy0xOC4zOCwyNi44NS0xOC4zOCwyNi44NWwyMC4xNy0uMTUtMS41Ny0yNi43WiIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMiIgZD0iTTM1Mi4xNyw3Ny40N2wzNS4wMi0uNy00LjI2LDEyLjQ3LTM0Ljc3LjM1LTQuMjIsMTIuNjYsMzcuNTMuMDItNS4wMiwxNC41OC01OC41OS0uNzUsMjEuMDYtNjQuMTcsNjAuMTItMi40OC01LjEzLDE0LjktMzcuNTgsMS4xMi00LjE1LDEyLjAxWiIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMiIgZD0iTTQxMy41Miw0OC44NGw0Mi44OS0xLjc3YzE5LjE4LS41MSwyNy4yNywyLjcsMjAuNDksMjAuODEtNC40LDEyLjA0LTcuMDQsMTkuMDQtMjMuNjIsMjIuMzRsLS4zMS43NmM4Ljg2LjIxLDEyLjk4LDQuNDcsMTAuMDEsMTIuNTdsLTUuMjQsMTQuMzQtMjEuMzgtLjI3LDMuNDktOS43OWMyLjEyLTUuMjQuOC04LjgtNS42OC04Ljc4bC0xNi43NC4wMy02LjQxLDE4LjIyLTIxLjM5LS4yNywyMy44OC02OC4xN1pNNDQwLjA0LDgyLjc4YzkuMzgtLjE0LDEwLjE3LTMuMTUsMTMuMS0xMS4yLDIuMy02LjM1LDEuMDgtOC4xMS02LjE5LTcuODlsLTE3LjA3LjUtNi43MywxOC44NCwxNi45LS4yNVoiLz4KICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Ik01MDYuNzYsMTE4LjUybC0yMS4zOC0uMjcsMjEuMDktNTYuMjktMjEuMTUuNjIsNi4zNi0xNi45Niw2Ni0yLjczLTYuOTMsMTcuNzgtMjIuMjUuNjUtMjEuNzQsNTcuMloiLz4KICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Ik01OTAuMjEsNzEuOTZjMjMuNjYsMS4yLDI4LjQ3LDQuMDcsMjEuMDUsMjIuMzgtNS4yMywxMy4xNC05Ljg1LDI2LjAyLTQ1LjEyLDI1LjU1LTIwLjQxLS4yNy0zMy44Mi0uODUtMjQuMzItMjUuNjFsMjAuNzktLjExYy0zLjE3LDcuOTktLjM5LDguODEsMTAuMTcsOC44MnMxMy42OS0uNjEsMTYuMjYtNy4xOWMyLjcyLTYuOCwxLjUxLTYuNjktOC40OC03LjIybC00LjYxLS4yN2MtMTkuNTUtMS4xNC0zMS40MS0uOTItMjIuODktMjIuNzcsOC42My0yMi4wMiwyMi42NS0yNC4wMiw0NC40My0yNC45MywxOC4yMy0uNzYsMzMuNjItMS4wOSwyNC42MSwyMS4xNGwtMS4zOCwzLjMyLTIxLjA4LjUyYzMuMzItOC4xMy0uMjEtOC4wMi05LjAzLTcuNzUtMTEuOTEuMzYtMTMuODQsMi42Ny0xNS41Niw3LjAzLTIuNDcsNi4yMS42Nyw2LjM1LDYuMjksNi42NGw4Ljg3LjQ0WiIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTI0NS4zOSwxNTMuNTRsLTMuMzUsNC44OS0xMC43Mi0uNTksMjAuMTktMjguNTcsMTUuOTkuNDIsMi44NSwzMC4zMS0xMC41Mi0uNTgtLjUyLTUuMTgtMTMuOTItLjdaTTI1Ny45OCwxMzUuNDFoLS4xMXMtOC41OSwxMi41Ni04LjU5LDEyLjU2bDkuNjYuNDMtLjk2LTEyLjk4WiIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTMwOS4yNiwxNTAuMjVsLS4yNS45MWMtMS4xLDMuMzgtMi4wOCw2LjQyLTYuMzcsOC41Ny00LjE4LDIuMS04LjQ1LDEuODItMTIuOTQsMS41Ny0xMC41Mi0uNTgtMTguMDgtMS40LTE0Ljc3LTEyLjMybDIuMzYtNy43N2MzLjA5LTkuOTcsMTAuNTUtMTEuMjQsMjIuMTItMTAuOTQsMTAuODQuMjgsMTUuNTcsMS4yOSwxMi43OCwxMC42M2wtLjM3LDEuMi0xMC43Ni0uMzkuMzctMS4xOWMuNTQtMi43Ni0xLjg2LTMuMDUtNS40Mi0zLjE2LTUuOTctLjE5LTcuMDIsMS4yMS04LjMzLDUuNTVsLTEuNDcsNC43M2MtMS40MSw0LjUyLTEuNjcsNi4yNiw0LjU0LDYuNTcsNC4zLjIxLDYuNDMuMDYsNy41Ny0zLjUybC4yNS0uOSwxMC43LjQ3WiIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTMyNy41NiwxNjMuMTVsLTEwLjMxLS41Nyw3LjcxLTI0LjAyLTEwLjA1LS4zMywyLjMzLTcuMjQsMzEuMjQuODItMi40Nyw3LjQ1LTEwLjU3LS4zNS03Ljg3LDI0LjI0WiIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTM1MS41LDE2NC40N2wtMTAuMzEtLjU3LDEwLjU2LTMyLjAxLDEwLjUyLjI4LTEwLjc3LDMyLjNaIi8+CiAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNMzYwLjI2LDE1My4xNmwzLjA3LTkuMTdjMy4zOC0xMC4wNCwxMS42NC0xMS43NSwyMi4zMS0xMS40OCwxMC42OC4yOCwxNy41MywyLjQ1LDEzLjkzLDEyLjhsLTMuMjgsOS40NmMtMy41NCwxMC4yNi0xMS42MiwxMS44LTIyLjA4LDExLjIyLTEwLjQ2LS41OC0xNy4yNy0yLjg4LTEzLjk1LTEyLjgzWk0zODUuOTUsMTUzLjMybDIuNTctNy40N2MxLjY2LTQuOTItLjA3LTUuNDctNS41MS01LjY1LTUuNDUtLjE4LTcuNDMuMjUtOS4yLDUuMWwtMi41MSw3LjM4Yy0xLjUsNC44OC4xMSw1LjQ1LDUuNSw1LjcxczcuNDUtLjEzLDkuMTUtNS4wN1oiLz4KICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik00MDcuMzYsMTY3LjU1bC0xMC4zMS0uNTcsMTEuNjktMzMuNiwxNy43Ny40NiwxLjg3LDI2Ljc3LjQyLjAyLDguODEtMjYuNSwxMC41Mi4yOC0xMi40NiwzNC43LTE3LjU4LS45Ny0xLjg0LTI2LjU5aC0uNDJzLTguNDcsMjYtOC40NywyNloiLz4KICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik00NzMuNDUsMTM1LjA3bDIwLjcyLjU0YzcuODQuMiwxMS45NSwxLjY5LDguOTksOS42Ny0xLjc4LDQuNjEtMy44OSw3LjU4LTkuMzEsOC4xNWwtLjE2LjM5YzUuNjguNTcsNS40MSwzLjg2LDMuNzEsOC40LTMuMzEsOC44OC04LjE4LDkuODQtMTYuMzgsOS4zOWwtMjAuNTItMS4xMywxMi45Ni0zNS40MVpNNDczLjY3LDE2My4yOWw3LjgyLjM4YzMuMzYuMTYsNS4wMi0uNDksNi4xMS0zLjQxLDEuMS0yLjk4LjA3LTMuNDYtMy4zMS0zLjZsLTguMDYtLjM1LTIuNTYsNi45OFpNNDc4LjcsMTQ5LjY5bDcuNTEuMjhjMy42NS4xNCw0LjczLS40MSw1LjgyLTMuMy44My0yLjE3Ljc0LTMtMi4xMy0zLjE5bC04LjgtLjI5LTIuNDEsNi40OVoiLz4KICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik01MDguOTgsMTczLjE2bC0xMC4zMS0uNTcsMTMuNzItMzYuNSwxMC41Mi4yOC0xMy45MywzNi43OVoiLz4KICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik01MzQuNjQsMTUwLjg5bDMuMTMuMTIsMTUuNTktMTMuODQsMTIuNzMuMzMtMjEuMDQsMTguMTUsNy40LDE5LjkxLTEyLjc4LS43MS01LjIyLTE1LjE4LTMuMTItLjE0LTUuNTMsMTQuNTUtMTAuMzEtLjU3LDE0LjA2LTM2Ljk4LDEwLjUyLjI4LTUuNDEsMTQuMDdaIi8+CiAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNNTczLjU0LDE1My4zMWwxNi43LjYzLTIuODMsNy4yLTE2LjYzLS43Mi0yLjkyLDcuNDUsMTguMDIuODgtMy4zNSw4LjQ2LTI4LjI1LTEuNTYsMTQuODQtMzguMDgsMjguNDUuNzQtMy4zNSw4LjU0LTE3Ljg2LS41OC0yLjgxLDcuMDJaIi8+Cjwvc3ZnPg==" alt="Aerts Action Bike">
+        <div class="domain">aertsactionbike.cc</div>
+      </div>
+
+      <section class="card">
+        <div class="grid">
+          <div class="content">
+            <div class="eyebrow"><span class="dot"></span>Oeps — verkeerde afslag</div>
+            <h1>Deze route eindigt niet in onze webshop.</h1>
+            <p class="lead">
+              Je bent op onze interne omgeving terechtgekomen.
+              Geen probleem: we sturen je meteen terug naar de officiële
+              Aerts Action Bike webshop.
+            </p>
+            <div>
+              <a class="btn" href="https://www.aertsactionbike.be/">Naar de webshop <span>→</span></a>
+            </div>
+            <div class="redirect" id="redirectText">
+              Automatisch doorsturen over <span class="count" id="countdown">8</span> seconden…
+            </div>
+          </div>
+
+          <div class="visual" aria-hidden="true">
+            <div class="sign">
+              <div class="sign-icon">↪</div>
+              <strong>Even omkeren.</strong>
+              <span>De fietsen, onderdelen en accessoires vind je een afslag verder.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="staff">
+        <a class="staff-link" id="staffLink" href="https://www.aertsactionbike.cc/mailing-system/admin.php">Team AAB — interne tools</a>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const shopUrl = "https://www.aertsactionbike.be/";
+    const staffLink = document.getElementById("staffLink");
+    const countdownEl = document.getElementById("countdown");
+    const redirectText = document.getElementById("redirectText");
+
+    let seconds = 8;
+    let redirectEnabled = true;
+
+    const timer = setInterval(() => {
+      if (!redirectEnabled) return;
+      seconds -= 1;
+      countdownEl.textContent = seconds;
+      if (seconds <= 0) {
+        clearInterval(timer);
+        window.location.href = shopUrl;
+      }
+    }, 1000);
+
+    staffLink.addEventListener("click", () => {
+      redirectEnabled = false;
+      clearInterval(timer);
+      redirectText.textContent = "Interne modus geopend — automatische doorsturing gestopt.";
+    });
+  </script>
+</body>
+</html>

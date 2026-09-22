@@ -1,0 +1,20 @@
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Blokkeer interne applicatiebestanden en gevoelige data.
+    RewriteRule ^(?:src|data)(?:/|$) - [F,L,NC]
+    RewriteRule ^(?:\.git|\.env)(?:/|$) - [F,L,NC]
+</IfModule>
+
+<FilesMatch "(?i)(?:^\.env|\.sqlite(?:-wal|-shm)?$|config\.php$|composer\.(?:json|lock)$)">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "same-origin"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>
