@@ -1,14 +1,15 @@
 # Aerts Action Bike — snelstart
 
-Open `/home/` op dezelfde host als de bestaande verhuurmodule en mailingtool.
+Open `/home/` op dezelfde host als de bestaande verhuurmodule, mailingtool en lease-module.
 Apache verwijst `/home` automatisch door naar `/home/` en serveert `index.html`.
 
 ## Functie
 
-- Eén compacte snelstart met drie acties:
+- Eén compacte snelstart met vier acties:
   - Nieuwe verhuur: `/huur-module/reservation-new.php`.
   - Klant mailen: `/mailing-system/index.php`.
   - Vervangfiets meegeven: `/huur-module/quick-replacement.php`.
+  - Leasebeheer: `/lease/` (de module verwijst door naar `public/`).
 - De pagina werkt volledig zonder JavaScript.
 - Responsive weergave voor desktop, tablet en mobiel.
 - League Spartan en het bestaande Aerts-logo worden lokaal geladen.
@@ -29,7 +30,10 @@ zijn eigen startpagina opent, blijft dat bestaande gedrag behouden.
    - `/www/mailing-system/communication-dashboard.php`
    - `/www/mailing-system/admin.php`
 
-Staat de vorige dashboardversie al online? Dan volstaat het om `home/index.html`
+Staat de vereenvoudigde snelstart al online? Dan hoef je alleen `home/index.html`
+te vervangen om Leasebeheer toe te voegen. De lease-module moet op `/lease/` staan.
+
+Gebruik je nog de uitgebreide dashboardversie? Dan volstaat het om `home/index.html`
 en `home/assets/dashboard.css` te vervangen. Een eerder geüpload
 `home/assets/dashboard.js` wordt niet meer gebruikt en mag worden verwijderd.
 
@@ -55,7 +59,7 @@ niet publiek open: hij voert PHP niet uit en beschermt geen private projectmappe
 
 ## Onderhoud
 
-De drie acties, beschrijvingen en links staan in `index.html`; de vormgeving staat
+De acties, beschrijvingen en links staan in `index.html`; de vormgeving staat
 in `assets/dashboard.css`. Verhoog bij CSS-wijzigingen de versie in de stylesheetlink
 zodat browsers de nieuwe vormgeving ophalen.
 
