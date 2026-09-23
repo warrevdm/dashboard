@@ -1,7 +1,11 @@
 {
   "name": "aab-lease-security-tests",
   "private": true,
-  "scripts": { "test": "node --experimental-wasm-jspi security.cjs" },
+  "scripts": {
+    "test": "npm run test:security && npm run test:weekly",
+    "test:security": "node --experimental-wasm-jspi security.cjs",
+    "test:weekly": "node --experimental-wasm-jspi weekly-mail.cjs"
+  },
   "devDependencies": {
     "@php-wasm/node": "3.1.54",
     "@php-wasm/universal": "3.1.54"

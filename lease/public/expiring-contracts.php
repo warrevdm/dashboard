@@ -4,27 +4,10 @@ require_once __DIR__ . '/../app/Database.php';
 
 $pdo = Database::connect();
 
-$stmt = $pdo->query("
-    SELECT
-        lo.*,
-        EXISTS (
-            SELECT 1
-            FROM customer_logbook cl
-            WHERE cl.lease_order_id = lo.id
-        ) AS in_progress,
-        (
-            SELECT MAX(cl.created_at)
-            FROM customer_logbook cl
-            WHERE cl.lease_order_id = lo.id
-        ) AS last_logbook_activity
-    FROM lease_orders lo
-    WHERE lo.archived = 0
-      AND lo.lease_end_date IS NOT NULL
-      AND lo.lease_end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 MONTH)
-    ORDER BY lo.lease_end_date ASC
-");
-
-$orders = $stmt->fetchAll();
+require_once __DIR__ . '/../app/ExpiringContracts.php';
+$withoutLogbook = ($_GET['without_logbook'] ?? '') === '1';
+$now = new DateTimeImmutable('now', new DateTimeZone('Europe/Brussels'));
+$orders = ExpiringContracts::find($pdo, $now, $withoutLogbook);
 
 function e($value): string
 {
@@ -37,6 +20,7 @@ function e($value): string
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Contracten verlopen binnenkort | Lease Import Manager</title>
     <link rel="stylesheet" href="assets.css">
 </head>
@@ -52,6 +36,14 @@ function e($value): string
     <section class="card">
         <h2>Leasingcontracten die binnenkort aflopen</h2>
         <p>Deze lijst toont contracten met een einddatum tussen vandaag en 3 maanden vanaf vandaag.</p>
+        <div class="quick-actions">
+            <a class="<?= $withoutLogbook ? 'button-secondary' : 'button' ?>" href="expiring-contracts.php">Alle contracten</a>
+            <a class="<?= $withoutLogbook ? 'button' : 'button-secondary' ?>" href="expiring-contracts.php?without_logbook=1">Zonder logboek</a>
+            <a class="button-secondary" href="weekly-mail.php">Voorbeeld dinsdagmail</a>
+        </div>
+        <?php if ($withoutLogbook): ?>
+            <p>Alleen dossiers zonder enige logboekactie. Dit is dezelfde selectie als in de dinsdagmail.</p>
+        <?php endif; ?>
         <p><strong>🔄 In behandeling</strong> = er werd minstens één item toegevoegd aan het logboek van dit dossier.</p>
     </section>
 
@@ -75,7 +67,7 @@ function e($value): string
             <tbody>
                 <?php if (empty($orders)): ?>
                     <tr>
-                        <td colspan="11">Geen leasingcontracten die binnen 3 maanden aflopen.</td>
+                        <td colspan="11"><?= $withoutLogbook ? 'Geen aflopende contracten zonder logboekactie.' : 'Geen leasingcontracten die binnen 3 maanden aflopen.' ?></td>
                     </tr>
                 <?php endif; ?>
 

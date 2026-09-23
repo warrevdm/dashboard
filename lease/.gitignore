@@ -47,3 +47,7 @@ browser-connectors/o2o/*.json
 /config/auth.*.local.php
 /storage/auth/*
 !/storage/auth/.htaccess
+
+# Weekly internal email: private SMTP configuration and delivery state
+/config/weekly-mail.local.php
+/storage/weekly-mail/*

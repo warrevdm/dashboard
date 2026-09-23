@@ -57,7 +57,7 @@ async function newPHP() {
   writeConfig();
   fs.writeFileSync(marker, '');
   // Parse every application PHP file, without executing it or reading private config.
-  for (const file of files(root).filter(p => p.endsWith('.php') && !p.includes('/vendor/') && !p.endsWith('auth.local.php'))) {
+  for (const file of files(root).filter(p => p.endsWith('.php') && !p.includes('/vendor/') && !p.endsWith('.local.php') && !p.endsWith('/config.production.php'))) {
     await run(`token_get_all(base64_decode('${fs.readFileSync(file).toString('base64')}'), TOKEN_PARSE);`);
     checks++;
     if (file.includes(path.sep + 'public' + path.sep)) {
