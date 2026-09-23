@@ -14,6 +14,11 @@ klantmail verstuurd en er wordt geen logboekactie aangemaakt. Een nog niet
 opgevolgd contract blijft de volgende week terugkomen zolang het in de periode
 valt. Een lege selectie levert een korte bevestiging op.
 
+De afgesproken standaardontvangers zijn **info@aertsactionbike.be** en
+**marketing@aertsactionbike.be**. Je kunt ze aanpassen in de private configuratie;
+die lijst vervangt de standaardontvangers volledig. De verzending blijft standaard
+uitgeschakeld totdat de mailserver en de geplande taak zijn ingesteld.
+
 Onder **Dinsdagmail** zie je de ingestelde ontvangers, planning, laatste
 verzendstatus per ontvanger en een actueel mailvoorbeeld. **Contracten verlopen →
 Zonder logboek** gebruikt exact dezelfde selectie. Het mailvoorbeeld kan dus
@@ -33,9 +38,11 @@ anders zijn dan de selectie op de eerstvolgende dinsdag.
    Upload bij een FTP/SFTP-installatie ook de opnieuw opgebouwde `lease/vendor`
    naast de gewijzigde bronbestanden. Node.js is alleen nodig voor de tests.
 3. Kopieer `lease/config/weekly-mail.example.php` naar
-   `lease/config/weekly-mail.local.php`. Vul de **interne** ontvangers, toegestane
-   afzender en SMTP-gegevens van je mailprovider in. De voorbeeldadressen zijn
-   placeholders. Houd `enabled` voorlopig op `false`. Gebruik TLS met poort 587
+   `lease/config/weekly-mail.local.php`. De twee afgesproken **interne** ontvangers
+   zijn al ingevuld. Vul de toegestane afzender en SMTP-gegevens van je mailprovider
+   in; die velden bevatten nog placeholders. Heb je al een privaat bestand, pas
+   dan alleen de `recipients`-lijst aan en behoud de overige instellingen.
+   Houd `enabled` voorlopig op `false`. Gebruik TLS met poort 587
    of SMTPS met poort 465 volgens je provider. Certificaatcontrole blijft aan.
    Dit private bestand is uitgesloten van Git en moet door PHP leesbaar zijn.
 4. Zorg dat de geplande taak de juiste databank gebruikt. Standaard leest de CLI
@@ -80,8 +87,9 @@ De bestaande afscherming van private mappen moet actief blijven.
 Voor configuratie buiten de webroot kun je `AAB_LEASE_WEEKLY_MAIL_FILE` instellen
 op een absoluut privaat PHP-bestand met dezelfde inhoud. Geef die instelling aan
 zowel PHP op de website als de geplande taak door. `state_directory` kan ook naar
-een private, permanente map buiten de webroot verwijzen. Zet geen SMTP-wachtwoord
-of ontvangerslijst in Git, in de crontab of in het zichtbare mailvoorbeeld.
+een private, permanente map buiten de webroot verwijzen. Bewaar SMTP-wachtwoorden
+en afwijkende ontvangerslijsten uitsluitend in de private configuratie; zet ze
+niet in Git, in de crontab of in het zichtbare mailvoorbeeld.
 
 ### Dubbele mails, fouten en herstel
 

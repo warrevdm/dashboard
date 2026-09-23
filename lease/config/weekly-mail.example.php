@@ -4,7 +4,7 @@
 return [
     'enabled' => false, // Enable after configuring mail and the scheduled task.
     'send_hour' => 9, // Every Tuesday at/after 09:00, Belgian summer/winter time.
-    'recipients' => ['intern@example.com'], // Internal recipients, NOT customer addresses.
+    'recipients' => ['info@aertsactionbike.be', 'marketing@aertsactionbike.be'], // Agreed internal recipients.
     'from_address' => 'afzender@example.com',
     'from_name' => 'Aerts Action Bike',
     'base_url' => 'https://aertsactionbike.cc/lease/public',

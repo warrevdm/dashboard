@@ -37,6 +37,20 @@ function removeTree(string $path): void
 $temp = sys_get_temp_dir() . '/aab-weekly-tests-' . bin2hex(random_bytes(8));
 mkdir($temp, 0700, true);
 try {
+    $originalConfigPath = getenv('AAB_LEASE_WEEKLY_MAIL_FILE');
+    $privateConfigPath = $temp . '/weekly-mail.local.php';
+    putenv('AAB_LEASE_WEEKLY_MAIL_FILE=' . $privateConfigPath);
+    try {
+        file_put_contents($privateConfigPath, "<?php return ['recipients' => ['only@example.test'], 'smtp' => ['host' => 'smtp.example.test']];");
+        $privateSettings = WeeklyMailConfig::load();
+        expect(WeeklyMailConfig::recipients($privateSettings) === ['only@example.test'], 'Private recipient list replaces all default recipients');
+        expect($privateSettings['smtp']['host'] === 'smtp.example.test' && $privateSettings['smtp']['port'] === 587 && $privateSettings['smtp']['encryption'] === 'tls', 'Partial SMTP settings retain transport defaults');
+        file_put_contents($privateConfigPath, "<?php return ['recipients' => []];");
+        expect(WeeklyMailConfig::recipients(WeeklyMailConfig::load()) === [], 'Empty private recipient list never restores default recipients');
+    } finally {
+        putenv($originalConfigPath === false ? 'AAB_LEASE_WEEKLY_MAIL_FILE' : 'AAB_LEASE_WEEKLY_MAIL_FILE=' . $originalConfigPath);
+    }
+
     $now = new DateTimeImmutable('2026-09-22 09:00:00', new DateTimeZone('Europe/Brussels'));
     $pdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
     $pdo->exec('CREATE TABLE lease_orders (id INTEGER PRIMARY KEY, so_number TEXT, customer_name TEXT, lease_partner TEXT, bike_name TEXT, lease_end_date TEXT, maintenance_budget REAL, archived INTEGER)');
