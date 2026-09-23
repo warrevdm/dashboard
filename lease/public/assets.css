@@ -497,7 +497,8 @@ input[type="number"] {
     z-index: 20;
 }
 
-.nav-dropdown-menu a {
+.nav-dropdown-menu a,
+.nav-dropdown-menu .nav-import-form button {
     display: flex;
     width: 100%;
     border-radius: 10px;
@@ -506,7 +507,19 @@ input[type="number"] {
     padding: 10px 12px;
 }
 
-.nav-dropdown-menu a:hover {
+.nav-import-form {
+    margin: 0;
+}
+
+.nav-dropdown-menu .nav-import-form button {
+    color: #374151;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.nav-dropdown-menu a:hover,
+.nav-dropdown-menu .nav-import-form button:hover {
     background: #f3f4f6;
     color: #111827;
 }

@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../app/bootstrap.php';
+Auth::requirePost();
 require_once __DIR__ . '/../app/Database.php';
 
 $pdo = Database::connect();
@@ -9,7 +11,7 @@ function e($value): string
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
-$id = (int) ($_GET['id'] ?? 0);
+$id = (int) ($_POST['id'] ?? 0);
 
 if ($id <= 0) {
     die('Ongeldig contract.');

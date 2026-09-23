@@ -1,13 +1,10 @@
 <?php
 
+require_once __DIR__ . '/../app/bootstrap.php';
+Auth::requirePost();
 require_once __DIR__ . '/../app/Database.php';
 
 $pdo = Database::connect();
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: mapping-templates.php');
-    exit;
-}
 
 $templateId = (int) ($_POST['template_id'] ?? 0);
 

@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../app/bootstrap.php';
+Auth::requirePost();
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../app/Database.php';
 
@@ -13,12 +15,16 @@ function e($value): string
 $uploadDir = __DIR__ . '/../storage/uploads/';
 
 if (!is_dir($uploadDir)) {
-    mkdir($uploadDir, 0777, true);
+    mkdir($uploadDir, 0700, true);
 }
 
 $allowedExtensions = ['xlsx', 'xls', 'csv'];
 
 if (isset($_FILES['excel_file']) && $_FILES['excel_file']['error'] === UPLOAD_ERR_OK) {
+    if ((int) $_FILES['excel_file']['size'] > 10 * 1024 * 1024) {
+        http_response_code(413);
+        exit('Dit bestand is te groot. Upload maximaal 10 MB.');
+    }
     $originalName = basename($_FILES['excel_file']['name']);
     $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
@@ -26,7 +32,7 @@ if (isset($_FILES['excel_file']) && $_FILES['excel_file']['error'] === UPLOAD_ER
         die('Ongeldig bestandstype. Upload een .xlsx, .xls of .csv bestand.');
     }
 
-    $filename = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
+    $filename = bin2hex(random_bytes(16)) . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
     $targetPath = $uploadDir . $filename;
 
     if (!move_uploaded_file($_FILES['excel_file']['tmp_name'], $targetPath)) {
@@ -350,6 +356,7 @@ if (is_array($selectedTemplateMapping)) {
     <p>Kies een opgeslagen mappingtemplate om de kolommen automatisch in te vullen.</p>
 
     <form action="import-preview.php" method="POST">
+        <?= Auth::csrfField() ?>
         <input type="hidden" name="uploaded_file" value="<?= e($filename) ?>">
 
         <div class="form-group">
@@ -372,6 +379,7 @@ if (is_array($selectedTemplateMapping)) {
     </form>
 </section>
     <form action="import-review.php" method="POST">
+        <?= Auth::csrfField() ?>
         <input type="hidden" name="uploaded_file" value="<?= e($filename) ?>">
         <section class="card">
     <h2>Mappingtemplate</h2>

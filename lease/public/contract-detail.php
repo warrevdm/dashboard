@@ -231,6 +231,7 @@ $copyCustomerInfo = trim(
                     method="POST"
                     onsubmit="return confirm('Ben je zeker dat je dit contract wil archiveren? Het verdwijnt uit het standaardoverzicht, maar wordt niet definitief verwijderd.');"
                 >
+                    <?= Auth::csrfField() ?>
                     <input type="hidden" name="id" value="<?= e($order['id']) ?>">
                     <button type="submit" class="button-danger">Archiveren</button>
                 </form>
@@ -242,17 +243,17 @@ $copyCustomerInfo = trim(
                     method="POST"
                     onsubmit="return confirm('Wil je dit contract herstellen naar het actieve overzicht?');"
                 >
+                    <?= Auth::csrfField() ?>
                     <input type="hidden" name="id" value="<?= e($order['id']) ?>">
                     <button type="submit">Herstellen</button>
                 </form>
             <?php endif; ?>
 
-            <a
-                class="button"
-                href="log-mail-action.php?id=<?= e($order['id']) ?>"
-            >
-                Mail klant
-            </a>
+            <form action="log-mail-action.php" method="POST">
+                <?= Auth::csrfField() ?>
+                <input type="hidden" name="id" value="<?= e($order['id']) ?>">
+                <button type="submit" class="button">Mail klant</button>
+            </form>
 
             <?php if (!empty($order['phone'])): ?>
                 <a class="button-secondary" href="tel:<?= e($order['phone']) ?>">
@@ -380,6 +381,7 @@ $copyCustomerInfo = trim(
                 <dt>Budgetactie</dt>
                 <dd>
                     <form action="log-budget-conversion.php" method="POST" class="inline-log-form">
+                        <?= Auth::csrfField() ?>
                         <input type="hidden" name="id" value="<?= e($order['id']) ?>">
 
                         <input

@@ -1,8 +1,7 @@
 <?php
 
-require_once __DIR__ . '/../app/Auth.php';
-
-Auth::requireLogin();
+require_once __DIR__ . '/../app/bootstrap.php';
+Auth::requirePost();
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
@@ -256,6 +255,7 @@ foreach ($rows as $row) {
 
     <section class="card">
         <form action="import-process.php" method="POST">
+            <?= Auth::csrfField() ?>
             <input type="hidden" name="uploaded_file" value="<?= e($filename) ?>">
             <input type="hidden" name="mapping_name" value="<?= e($mappingName) ?>">
 

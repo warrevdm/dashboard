@@ -1,13 +1,10 @@
 <?php
 
+require_once __DIR__ . '/../app/bootstrap.php';
+Auth::requirePost();
 require_once __DIR__ . '/../app/Database.php';
 
 $pdo = Database::connect();
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: archived-contracts.php');
-    exit;
-}
 
 $id = (int) ($_POST['id'] ?? 0);
 

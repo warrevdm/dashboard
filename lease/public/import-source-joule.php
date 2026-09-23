@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../app/bootstrap.php';
+Auth::requirePost();
 require_once __DIR__ . '/../app/Database.php';
 
 $pdo = Database::connect();
@@ -17,10 +19,10 @@ if (!file_exists($incomingFile)) {
 }
 
 if (!is_dir($uploadDir)) {
-    mkdir($uploadDir, 0777, true);
+    mkdir($uploadDir, 0700, true);
 }
 
-$filename = time() . '_joule-delivered.csv';
+$filename = bin2hex(random_bytes(16)) . '_joule-delivered.csv';
 $targetPath = $uploadDir . $filename;
 
 if (!copy($incomingFile, $targetPath)) {
@@ -80,6 +82,7 @@ if (!is_array($mapping)) {
 
     <section class="card">
         <form action="import-review.php" method="POST">
+            <?= Auth::csrfField() ?>
             <input type="hidden" name="uploaded_file" value="<?= e($filename) ?>">
             <input type="hidden" name="mapping_name" value="<?= e($template['mapping_name']) ?>">
 

@@ -41,3 +41,9 @@ browser-connectors/o2o/*.json
 # Lokale root Node files indien niet gebruikt
 /package.json
 /package-lock.json
+
+# Installation-specific authentication secrets and login throttling
+/config/auth.local.php
+/config/auth.*.local.php
+/storage/auth/*
+!/storage/auth/.htaccess

@@ -1,8 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../app/Auth.php';
-
-Auth::requireLogin();
+require_once __DIR__ . '/../app/bootstrap.php';
 
 function e($value): string
 {
@@ -32,6 +30,7 @@ function e($value): string
         <p>Upload een Excel- of CSV-bestand. In de volgende stap koppel je de Excel-kolommen aan de juiste databasevelden.</p>
 
         <form action="import-preview.php" method="POST" enctype="multipart/form-data">
+            <?= Auth::csrfField() ?>
             <div class="form-group">
                 <label for="excel_file">Bestand</label>
                 <input type="file" name="excel_file" id="excel_file" accept=".xlsx,.xls,.csv" required>

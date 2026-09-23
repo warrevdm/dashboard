@@ -94,6 +94,7 @@ function formatJson($json): string
         method="POST"
         onsubmit="return confirm('Ben je zeker dat je deze mappingtemplate wil verwijderen? Dit verwijdert geen leasingcontracten.');"
     >
+        <?= Auth::csrfField() ?>
         <input type="hidden" name="template_id" value="<?= e($template['id']) ?>">
         <button type="submit" class="button-danger">Verwijderen</button>
     </form>

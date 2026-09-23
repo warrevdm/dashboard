@@ -1,10 +1,25 @@
 <?php
 
-return [
-    'access_key_hash' => '$2y$10$2o8974QuLuG8xVhHbDTvrOQQtXzK8UfQBhiJ16cJmHJoUHsvoMOyW',
-    'cookie_secret' => '65675b62bc7c8103fe3fa4bfdd174e32bc6c6350236dbe2b00b95311f953ff68',
+// This tracked file contains defaults only. Never put credentials here.
+$config = [
+    'access_key_hash' => '',
+    'cookie_secret' => '',
     'remember_days' => 30,
     'max_attempts' => 5,
     'lockout_seconds' => 300,
+    'session_idle_seconds' => 28800,
+    'session_max_seconds' => 86400,
     'cookie_name' => 'aab_lease_remember',
+    'auth_storage_dir' => __DIR__ . '/../storage/auth',
 ];
+
+// Prefer an absolute path outside the document root in production.
+$privatePath = getenv('AAB_LEASE_AUTH_FILE') ?: __DIR__ . '/auth.local.php';
+if (is_file($privatePath)) {
+    $privateConfig = require $privatePath;
+    if (is_array($privateConfig)) {
+        $config = array_replace($config, $privateConfig);
+    }
+}
+
+return $config;
