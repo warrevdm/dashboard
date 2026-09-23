@@ -1,0 +1,43 @@
+/vendor/
+node_modules/
+playwright/.auth/
+.env
+
+storage/incoming/*.csv
+storage/incoming/*.xlsx
+storage/incoming/*.json
+storage/incoming/*.tmp
+storage/uploads/*
+storage/logs/*
+
+browser-connectors/o2o/debug-*.txt
+browser-connectors/o2o/debug-*.png
+browser-connectors/o2o/o2o-contracts-page.png
+browser-connectors/o2o/debug-pagination*.json
+
+config/config.local.php
+config/config.production.php
+config/.htpasswd
+.htpasswd
+.htaccess.off
+
+public/diagnose.php
+public/db-schema-test.php
+public/runtime-test.php
+public/test.php
+
+# Cyclobility debug/output
+browser-connectors/cyclobility/*.png
+browser-connectors/cyclobility/*.txt
+browser-connectors/cyclobility/*.json
+!browser-connectors/cyclobility/package.json
+!browser-connectors/cyclobility/package-lock.json
+
+# O2O debug output
+browser-connectors/o2o/*.png
+browser-connectors/o2o/*.txt
+browser-connectors/o2o/*.json
+
+# Lokale root Node files indien niet gebruikt
+/package.json
+/package-lock.json

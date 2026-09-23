@@ -1,0 +1,15 @@
+# Lease Import Manager - productiebeveiliging
+# Kopieer dit bestand op de server naar: public/.htaccess
+# Vervang het pad hieronder door het absolute serverpad naar config/.htpasswd.
+
+AuthType Basic
+AuthName "Lease Import Manager"
+AuthBasicProvider file
+AuthUserFile "/ABSOLUUT/SERVERPAD/NAAR/lease-import-manager/config/.htpasswd"
+Require valid-user
+
+Options -Indexes
+
+<IfModule mod_headers.c>
+    Header always set X-Robots-Tag "noindex, nofollow, noarchive"
+</IfModule>

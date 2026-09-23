@@ -1,0 +1,14 @@
+{
+  "name": "joule-browser-connector",
+  "version": "1.0.0",
+  "description": "Browser automation connector for Joule delivered bikes",
+  "main": "scrape-delivered.js",
+  "scripts": {
+    "auth": "node auth.setup.js",
+    "scrape": "node scrape-delivered.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "playwright": "^1.56.0"
+  }
+}

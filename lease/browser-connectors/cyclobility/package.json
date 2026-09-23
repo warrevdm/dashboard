@@ -1,0 +1,15 @@
+{
+  "name": "cyclobility-browser-connector",
+  "version": "1.0.0",
+  "description": "Browser automation connector for Cyclobility retailer orders",
+  "main": "scrape-orders.js",
+  "scripts": {
+    "auth": "node auth.setup.js",
+    "debug": "node debug-cyclobility.js",
+    "scrape": "node scrape-orders.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "playwright": "^1.56.0"
+  }
+}
