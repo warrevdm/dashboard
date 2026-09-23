@@ -1,7 +1,7 @@
 <?php
 namespace PHPMailer\PHPMailer;
 
-// Loaded only by the CLI regression suite, never by application code.
+// Loaded only by isolated regression suites, never by application code.
 final class PHPMailer
 {
     public const ENCRYPTION_STARTTLS = 'tls';
@@ -18,5 +18,14 @@ final class PHPMailer
     public function setFrom(string $address, string $name): void { $this->from = $address; }
     public function addAddress(string $address): void { $this->addresses[] = $address; }
     public function isHTML(bool $html): void {}
-    public function send(): bool { return true; }
+    public function send(): bool
+    {
+        if ($capture = getenv('AAB_TEST_MAIL_OUTBOX')) {
+            file_put_contents($capture, json_encode(['to' => $this->addresses, 'subject' => $this->Subject]) . "\n", FILE_APPEND);
+        }
+        if (getenv('AAB_TEST_MAIL_FAIL_RECIPIENT') === ($this->addresses[0] ?? null)) {
+            throw new \RuntimeException('Synthetic SMTP failure with synthetic-password that must never be shown.');
+        }
+        return true;
+    }
 }

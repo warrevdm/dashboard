@@ -27,15 +27,40 @@ final class WeeklyMailRunner
             return ['status' => 'not_due', 'sent' => 0];
         }
         $now = $now->setTimezone(new DateTimeZone('Europe/Brussels'));
-        $week = $now->format('Y-m-d');
+        return $this->deliver($now, 'weeks', $now->format('Y-m-d'), $retryFailed);
+    }
+
+    public function sendNow(DateTimeImmutable $now, string $requestId): array
+    {
+        if (!preg_match('/^[a-f0-9]{32}$/D', $requestId)) {
+            throw new InvalidArgumentException('Ongeldige verzendopdracht.');
+        }
+        $errors = WeeklyMailConfig::errors($this->config);
+        if ($errors) {
+            throw new RuntimeException(implode(' ', $errors));
+        }
+        // enabled controls the scheduler; an authenticated manual action may run any day.
+        $now = $now->setTimezone(new DateTimeZone('Europe/Brussels'));
+        return $this->deliver($now, 'manual', hash('sha256', $requestId), false);
+    }
+
+    private function deliver(DateTimeImmutable $now, string $group, string $runId, bool $retryFailed): array
+    {
         $storage = new WeeklyMailState($this->config['state_directory']);
-        return $storage->locked(function (WeeklyMailState $storage) use ($now, $week, $retryFailed): array {
+        return $storage->locked(function (WeeklyMailState $storage) use ($now, $group, $runId, $retryFailed): array {
             $state = $storage->read();
+            if ($group === 'manual' && isset($state[$group][$runId])) {
+                $statuses = array_column($state[$group][$runId]['recipients'] ?? [], 'status');
+                $expected = (int) ($state[$group][$runId]['recipient_count'] ?? count(WeeklyMailConfig::recipients($this->config)));
+                $uncertain = count($statuses) !== $expected || !$statuses
+                    || count(array_filter($statuses, static fn ($status) => $status !== 'sent')) > 0;
+                return ['status' => $uncertain ? 'needs_review' : 'already_sent', 'sent' => 0];
+            }
             $pending = [];
             $blocked = 0;
             foreach (WeeklyMailConfig::recipients($this->config) as $recipient) {
                 $key = hash('sha256', strtolower($recipient));
-                $status = $state['weeks'][$week]['recipients'][$key]['status'] ?? null;
+                $status = $state[$group][$runId]['recipients'][$key]['status'] ?? null;
                 if ($status === 'sent') {
                     continue;
                 }
@@ -55,15 +80,18 @@ final class WeeklyMailRunner
             $message = WeeklyMailMessage::build($orders, $now, $this->config['base_url']);
             $sent = 0;
             $failed = $blocked;
+            if ($group === 'manual') {
+                $state[$group][$runId]['recipient_count'] = count($pending);
+            }
             foreach ($pending as $key => $recipient) {
                 $entry = [
                     'status' => 'sending',
                     'attempted_at' => $now->format(DATE_ATOM),
                     'count' => count($orders),
-                    'attempts' => 1 + (int) ($state['weeks'][$week]['recipients'][$key]['attempts'] ?? 0),
+                    'attempts' => 1 + (int) ($state[$group][$runId]['recipients'][$key]['attempts'] ?? 0),
                 ];
-                $state['weeks'][$week]['recipients'][$key] = $entry;
-                $state['weeks'][$week]['updated_at'] = $now->format(DATE_ATOM);
+                $state[$group][$runId]['recipients'][$key] = $entry;
+                $state[$group][$runId]['updated_at'] = $now->format(DATE_ATOM);
                 // Persist before contacting SMTP, under the same lock as delivery.
                 $storage->write($state);
                 try {
@@ -77,7 +105,7 @@ final class WeeklyMailRunner
                     // Do not store SMTP responses, credentials or customer contents.
                     $failed++;
                 }
-                $state['weeks'][$week]['recipients'][$key] = $entry;
+                $state[$group][$runId]['recipients'][$key] = $entry;
                 $storage->write($state);
             }
             return ['status' => $failed ? 'needs_review' : 'sent', 'sent' => $sent, 'failed' => $failed, 'contracts' => count($orders)];

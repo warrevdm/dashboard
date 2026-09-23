@@ -16,13 +16,34 @@ valt. Een lege selectie levert een korte bevestiging op.
 
 De afgesproken standaardontvangers zijn **info@aertsactionbike.be** en
 **marketing@aertsactionbike.be**. Je kunt ze aanpassen in de private configuratie;
-die lijst vervangt de standaardontvangers volledig. De verzending blijft standaard
-uitgeschakeld totdat de mailserver en de geplande taak zijn ingesteld.
+die lijst vervangt de standaardontvangers volledig. De automatische verzending
+blijft standaard uitgeschakeld totdat de mailserver en de geplande taak zijn ingesteld.
 
 Onder **Dinsdagmail** zie je de ingestelde ontvangers, planning, laatste
 verzendstatus per ontvanger en een actueel mailvoorbeeld. **Contracten verlopen →
 Zonder logboek** gebruikt exact dezelfde selectie. Het mailvoorbeeld kan dus
 anders zijn dan de selectie op de eerstvolgende dinsdag.
+
+### Meteen versturen via de leasingtool
+
+Open na het aanmelden **Dinsdagmail** en klik op **Nu versturen**. Dit verstuurt
+het actuele overzicht naar de ingestelde interne ontvangers, op elke dag en elk
+uur. Ook bij een lege selectie komt er een bevestigingsmail. De knop werkt zodra
+de ontvangers, afzender, SMTP en mailbibliotheek zijn ingesteld; een cronjob is
+hiervoor niet nodig. `enabled` mag op `false` blijven staan: die instelling regelt
+uitsluitend de automatische dinsdagmail.
+
+De knop gebruikt een beveiligd POST-formulier met CSRF-controle en een eenmalige
+verzendcode. Vernieuwen van de resultaatpagina of dubbelklikken verstuurt het
+overzicht niet opnieuw. Een volgende bewuste klik met een nieuw formulier is een
+nieuwe verzending. De laatste handmatige poging en de laatste dinsdagmail zijn
+apart zichtbaar, inclusief status per ontvanger. Beide gebruiken dezelfde
+vergrendeling zodat ze niet tegelijk verzenden. Er worden maximaal honderd
+handmatige pogingen bewaard, zonder mailinhoud of klantgegevens.
+
+Een handmatige mail wijzigt de dinsdagplanning en het klantlogboek niet. Bij een
+onzekere of gedeeltelijk mislukte poging controleer je eerst de status en de
+mailboxen: een nieuwe klik mailt opnieuw naar alle ingestelde ontvangers.
 
 ### Installeren en activeren
 
@@ -77,9 +98,9 @@ anders zijn dan de selectie op de eerstvolgende dinsdag.
    wijzigen maakt **geen** cronjob aan. Zonder ingestelde servertaak komt er geen
    automatische mail.
 
-De taak werkt zonder browsersessie en is uitsluitend via PHP CLI uitvoerbaar;
-een HTTP-verzoek naar het script krijgt 404. Er is geen publieke cron-URL of
-geheime sleutel in een URL. Gebruik één planner en een permanente, voor PHP
+De geplande taak werkt zonder browsersessie en is uitsluitend via PHP CLI uitvoerbaar;
+een HTTP-verzoek naar het CLI-script krijgt 404. Handmatig verzenden via de website
+vereist een geldige aanmelding en het beveiligde formulier. Gebruik één planner en een permanente, voor PHP
 schrijfbare statusmap `lease/storage/weekly-mail`. Verwijder of vervang die map
 niet bij een deployment: ze voorkomt herhaalde verzending op dezelfde dinsdag.
 De bestaande afscherming van private mappen moet actief blijven.

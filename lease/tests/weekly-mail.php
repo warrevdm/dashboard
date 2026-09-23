@@ -161,6 +161,56 @@ try {
     $nestedResult = $crashStore->locked(static fn ($store) => $store->locked(static fn () => ['status' => 'unexpected']));
     expect($nestedResult['status'] === 'busy', 'Overlapping job cannot acquire delivery lock');
 
+    $manualConfig = array_replace($config, ['enabled' => false, 'state_directory' => $temp . '/manual']);
+    $manualCalls = [];
+    $manualQueries = 0;
+    $manualDate = $now->modify('+1 day');
+    $manualLoad = static function ($date) use ($pdo, &$manualQueries): array {
+        $manualQueries++;
+        return ExpiringContracts::find($pdo, $date);
+    };
+    $manualSend = static function ($to, $body) use (&$manualCalls) { $manualCalls[] = [$to, $body]; };
+    $manualRunner = new WeeklyMailRunner($manualConfig, $manualLoad, $manualSend);
+    $requestId = str_repeat('a', 32);
+    $logbookBefore = (int) $pdo->query('SELECT COUNT(*) FROM customer_logbook')->fetchColumn();
+    expect($manualRunner->sendNow($manualDate, $requestId)['sent'] === 2, 'Manual action sends on Wednesday with the scheduler disabled');
+    expect(str_contains($manualCalls[0][1]['text'], '23/09/2026'), 'Manual overview uses the actual send date');
+    expect((int) $pdo->query('SELECT COUNT(*) FROM customer_logbook')->fetchColumn() === $logbookBefore, 'Manual overview never creates customer logbook entries');
+    expect($manualRunner->sendNow($manualDate, $requestId)['status'] === 'already_sent' && count($manualCalls) === 2 && $manualQueries === 1, 'Repeated manual request cannot query or deliver again');
+    $changedRecipients = array_replace($manualConfig, ['recipients' => ['third@example.test']]);
+    expect((new WeeklyMailRunner($changedRecipients, $manualLoad, $manualSend))->sendNow($manualDate, $requestId)['status'] === 'already_sent' && count($manualCalls) === 2, 'Replaying an old manual request cannot send to changed recipients');
+    $manualState = (new WeeklyMailState($manualConfig['state_directory']))->read();
+    expect($manualState['weeks'] === [] && count($manualState['manual']) === 1, 'Manual action records its own status without consuming a Tuesday slot');
+    expect($manualRunner->run($now)['status'] === 'disabled', 'Manual action does not enable the scheduler');
+    $enabledRunner = new WeeklyMailRunner(array_replace($manualConfig, ['enabled' => true]), $manualLoad, $manualSend);
+    expect($enabledRunner->run($now->modify('+7 days'))['sent'] === 2, 'Scheduled Tuesday still sends after an earlier manual delivery');
+    expect($manualRunner->sendNow($manualDate, str_repeat('b', 32))['sent'] === 2, 'New explicit manual action can send a fresh overview');
+    throws(fn () => $manualRunner->sendNow($manualDate, 'invalid'), 'Invalid manual request identifier is rejected');
+    throws(fn () => (new WeeklyMailRunner(array_replace($manualConfig, ['recipients' => []]), $manualLoad, $manualSend))->sendNow($manualDate, str_repeat('c', 32)), 'Manual action still requires valid mail configuration');
+    throws(fn () => (new WeeklyMailRunner($brokenConfig, $manualLoad, $manualSend))->sendNow($manualDate, str_repeat('c', 32)), 'Manual action also fails closed on unreadable state');
+    $manualFailureConfig = array_replace($manualConfig, ['state_directory' => $temp . '/manual-failure']);
+    $callsBefore = count($calls);
+    $manualFailure = new WeeklyMailRunner($manualFailureConfig, $manualLoad, $failSecond);
+    expect($manualFailure->sendNow($manualDate, $requestId)['status'] === 'needs_review', 'Manual partial failure is reported');
+    expect($manualFailure->sendNow($manualDate, $requestId)['status'] === 'needs_review' && count($calls) === $callsBefore + 2, 'Uncertain manual delivery does not retry the same request');
+    $manualStore = new WeeklyMailState($manualConfig['state_directory']);
+    $callCount = count($manualCalls);
+    $manualBusy = $manualStore->locked(static fn () => $manualRunner->sendNow($manualDate, str_repeat('d', 32)));
+    expect($manualBusy['status'] === 'busy' && count($manualCalls) === $callCount, 'Manual and scheduled delivery use the same lock');
+    $interruptedId = str_repeat('e', 32);
+    $manualStore->locked(static function ($store) use ($interruptedId, $config) {
+        $state = $store->read();
+        $state['manual'][hash('sha256', $interruptedId)] = ['recipient_count' => 2, 'recipients' => [
+            hash('sha256', strtolower(WeeklyMailConfig::recipients($config)[0])) => ['status' => 'sent'],
+        ]];
+        $store->write($state);
+        return [];
+    });
+    expect($manualRunner->sendNow($manualDate, $interruptedId)['status'] === 'needs_review', 'A crash between manual recipients remains uncertain');
+    expect((new WeeklyMailRunner(array_replace($manualConfig, ['state_directory' => $temp . '/manual-empty']), static fn () => [], $manualSend))->sendNow($manualDate, $requestId)['contracts'] === 0, 'Manual action also sends an empty confirmation');
+    $manualJson = file_get_contents($manualConfig['state_directory'] . '/status.json');
+    expect(!str_contains($manualJson, 'internal@example.test') && !str_contains($manualJson, 'Testklant') && !str_contains($manualJson, 'synthetic-password'), 'Manual status stores no mail contents, addresses or secrets');
+
     // A local transport double captures PHPMailer configuration; never opens SMTP.
     require __DIR__ . '/fixtures/SmtpDouble.php';
     (new WeeklySmtpMailer($config))->send('internal@example.test', $message);

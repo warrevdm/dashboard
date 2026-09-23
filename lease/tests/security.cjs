@@ -5,12 +5,13 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { PHP } = require('@php-wasm/universal');
+const { PHP, FileLockManagerInMemory } = require('@php-wasm/universal');
 const { loadNodeRuntime, createNodeFsMountHandler } = require('@php-wasm/node');
 const root = path.resolve(__dirname, '..');
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'lease-security-'));
 const fixture = path.join(temporary, 'lease');
 const configFile = path.join(temporary, 'auth.php');
+const mailConfigFile = path.join(temporary, 'weekly-mail.php');
 const marker = path.join(temporary, 'processing-reached');
 const key = 'synthetic-test-access-key-only';
 const phpString = value => "'" + value.replaceAll('\\', '\\\\').replaceAll("'", "\\'") + "'";
@@ -23,9 +24,10 @@ const postPages = [
   'delete-mapping-template.php', 'rollback-import.php', 'log-budget-conversion.php',
   'log-mail-action.php', 'import-preview.php', 'import-review.php', 'import-process.php',
   'import-source-o2o.php', 'import-source-joule.php', 'import-source-cyclobility.php',
+  'send-weekly-mail.php',
 ];
 async function newPHP() {
-  const php = new PHP(await loadNodeRuntime('8.3', {emscriptenOptions: {processId: process.pid}}));
+  const php = new PHP(await loadNodeRuntime('8.3', {fileLockManager: new FileLockManagerInMemory(), emscriptenOptions: {processId: process.pid}}));
   activePHP = php;
   php.mkdirTree(temporary);
   await php.mount(temporary, createNodeFsMountHandler(temporary));
@@ -35,9 +37,19 @@ async function newPHP() {
   for (const folder of ['app', 'public', 'scripts']) fs.cpSync(path.join(root, folder), path.join(fixture, folder), {recursive: true});
   fs.mkdirSync(path.join(fixture, 'config'));
   fs.copyFileSync(path.join(root, 'config/auth.php'), path.join(fixture, 'config/auth.php'));
+  fs.copyFileSync(path.join(root, 'config/weekly-mail.php'), path.join(fixture, 'config/weekly-mail.php'));
   fs.mkdirSync(path.join(temporary, 'sessions'));
   const php = await newPHP();
-  const env = {AAB_LEASE_AUTH_FILE: configFile};
+  const env = {AAB_LEASE_AUTH_FILE: configFile, AAB_LEASE_WEEKLY_MAIL_FILE: mailConfigFile};
+  function writeMailConfig(host = 'smtp.example.test') {
+    fs.writeFileSync(mailConfigFile, `<?php return [
+      'enabled'=>false, 'send_hour'=>9, 'recipients'=>['first@example.test', 'second@example.test'],
+      'from_address'=>'sender@example.test', 'from_name'=>'Aerts Action Bike', 'base_url'=>'https://example.test/lease/public',
+      'state_directory'=>${phpString(path.join(temporary, 'mail-state'))},
+      'smtp'=>['host'=>${phpString(host)}, 'port'=>587, 'encryption'=>'tls', 'username'=>'test', 'password'=>'synthetic-password']
+    ];`);
+  }
+  writeMailConfig();
   const prelude = `ini_set('session.save_path', ${phpString(path.join(temporary, 'sessions'))});`;
   async function run(code, options = {}) {
     const response = await php.run({
@@ -135,9 +147,12 @@ async function newPHP() {
     check(response.httpStatusCode === 405 && response.headers.allow?.[0] === 'POST', `GET cannot mutate: ${page}`);
   }
   check(!fs.existsSync(path.join(fixture, 'storage')), 'Invalid CSRF created no uploads or job directories');
+  const sendRequestId = 'a'.repeat(32);
+  fs.writeFileSync(path.join(base, 'seed-mail-form.php'), `<?php require __DIR__.'/../app/bootstrap.php'; $_SESSION['weekly_mail_send_id']='${sendRequestId}';`);
+  await request('seed-mail-form.php', {jar});
   for (const page of postPages) {
     fs.writeFileSync(marker, '');
-    const response = await request(page, {jar, method: 'POST', data: {csrf_token: csrf, id: '1'}});
+    const response = await request(page, {jar, method: 'POST', data: {csrf_token: csrf, id: '1', send_request_id: sendRequestId}});
     check(response.httpStatusCode === 204 && fs.readFileSync(marker, 'utf8') === 'reached', `Valid form reaches processing: ${page}`);
   }
   // Every real rendered POST form on upload + navigation carries the current token.
@@ -198,6 +213,60 @@ async function newPHP() {
   check((await request('upload.php', {jar: finalLogin.jar})).httpStatusCode === 302, 'Logged-out browser loses access');
   const webSetup = await run(`require ${phpString(path.join(fixture, 'scripts/configure-auth.php'))};`);
   check(webSetup.httpStatusCode === 404, 'Credential generator cannot run through the web');
+
+  // Exercise the complete manual mail form/POST/redirect flow with SQLite and a fake SMTP transport.
+  fs.writeFileSync(path.join(fixture, 'app/Database.php'), `<?php require_once __DIR__.'/bootstrap.php';
+    class Database { public static function connect(): PDO {
+      Auth::requireLogin();
+      $pdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+      $pdo->exec('CREATE TABLE lease_orders (id INTEGER PRIMARY KEY, so_number TEXT, customer_name TEXT, lease_partner TEXT, bike_name TEXT, lease_end_date TEXT, maintenance_budget REAL, archived INTEGER)');
+      $pdo->exec('CREATE TABLE customer_logbook (id INTEGER PRIMARY KEY, lease_order_id INTEGER, created_at TEXT)');
+      $insert = $pdo->prepare('INSERT INTO lease_orders VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+      $today = (new DateTimeImmutable('now', new DateTimeZone('Europe/Brussels')))->format('Y-m-d');
+      $insert->execute([1, 'SO-TEST', 'Synthetic customer', 'Synthetic partner', 'Synthetic bike', $today, 100, 0]);
+      return $pdo;
+    } }`);
+  fs.writeFileSync(path.join(fixture, 'vendor/autoload.php'), fs.readFileSync(path.join(root, 'tests/fixtures/SmtpDouble.php')));
+  const outbox = path.join(temporary, 'fake-mail-outbox.jsonl');
+  env.AAB_TEST_MAIL_OUTBOX = outbox;
+  function attempts() { return fs.existsSync(outbox) ? fs.readFileSync(outbox, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : []; }
+  function sendForm(response) {
+    const match = response.text.match(/name="send_request_id" value="([a-f0-9]{32})"/);
+    assert.ok(match, 'Manual send form includes a request identifier');
+    return {csrf_token: token(response), send_request_id: match[1]};
+  }
+  const manualJar = (await login()).jar;
+  const manualPage = await request('weekly-mail.php', {jar: manualJar});
+  check(manualPage.httpStatusCode === 200 && /<button type="submit"\s*>Nu versturen<\/button>/.test(manualPage.text), 'Configured manual send button is enabled while the scheduler is disabled');
+  check(attempts().length === 0, 'Viewing the manual preview never sends mail');
+  const manualForm = sendForm(manualPage);
+  const badRequest = await request('send-weekly-mail.php', {jar: manualJar, method: 'POST', data: {...manualForm, send_request_id: 'b'.repeat(32)}});
+  check(badRequest.httpStatusCode === 403 && attempts().length === 0, 'A forged manual request ID is blocked');
+  const sentResponse = await request('send-weekly-mail.php', {jar: manualJar, method: 'POST', data: {...manualForm, recipients: 'injected@example.test'}});
+  check(sentResponse.httpStatusCode === 303 && sentResponse.headers.location?.[0] === 'weekly-mail.php', 'Successful manual POST redirects to the overview');
+  check(JSON.stringify(attempts().map(item => item.to)) === JSON.stringify([['first@example.test'], ['second@example.test']]), 'Manual web action uses only configured recipients');
+  const repeatResponse = await request('send-weekly-mail.php', {jar: manualJar, method: 'POST', data: manualForm});
+  check(repeatResponse.httpStatusCode === 403 && attempts().length === 2, 'Reposting the same form cannot deliver twice');
+  const afterSend = await request('weekly-mail.php', {jar: manualJar});
+  check(afterSend.text.includes('voor 2 ontvanger(s) aanvaard') && afterSend.text.includes('Laatste handmatige verzending') && attempts().length === 2, 'Result page displays confirmation and status without sending again');
+  check(!afterSend.text.includes('synthetic-password'), 'Preview and result page expose no SMTP password');
+  const storedMailState = JSON.parse(fs.readFileSync(path.join(temporary, 'mail-state/status.json'), 'utf8'));
+  check(Object.keys(storedMailState.manual).length === 1 && Object.keys(storedMailState.weeks).length === 0, 'Manual web delivery leaves the automatic schedule untouched');
+  writeMailConfig('');
+  const invalidSettingsPage = await request('weekly-mail.php', {jar: manualJar});
+  check(/<button type="submit" disabled>Nu versturen<\/button>/.test(invalidSettingsPage.text), 'Invalid SMTP settings disable the button');
+  const invalidSettingsPost = await request('send-weekly-mail.php', {jar: manualJar, method: 'POST', data: sendForm(invalidSettingsPage)});
+  check(invalidSettingsPost.httpStatusCode === 303 && attempts().length === 2, 'Server also rejects invalid configuration if the disabled form is submitted');
+  writeMailConfig();
+  env.AAB_TEST_MAIL_FAIL_RECIPIENT = 'second@example.test';
+  const failedPage = await request('weekly-mail.php', {jar: manualJar});
+  await request('send-weekly-mail.php', {jar: manualJar, method: 'POST', data: sendForm(failedPage)});
+  const failedResult = await request('weekly-mail.php', {jar: manualJar});
+  check(failedResult.text.includes('Niet alle verzendingen zijn bevestigd') && failedResult.text.includes('Niet bevestigd') && !failedResult.text.includes('synthetic-password'), 'Partial SMTP failure is shown safely per recipient');
+  delete env.AAB_TEST_MAIL_FAIL_RECIPIENT;
+  fs.writeFileSync(path.join(fixture, 'vendor/autoload.php'), '<?php // Missing mail library fixture.');
+  const missingLibraryPage = await request('weekly-mail.php', {jar: manualJar});
+  check(missingLibraryPage.text.includes('De mailbibliotheek ontbreekt') && /<button type="submit" disabled>/.test(missingLibraryPage.text), 'Missing mail library disables manual delivery with a useful message');
   php.exit();
   // Exercise the real installer through CLI; never print its generated credentials.
   const generated = path.join(temporary, 'generated.php');

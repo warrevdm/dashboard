@@ -12,7 +12,8 @@ final class WeeklyMailState
         }
         $contents = @file_get_contents($path);
         $state = $contents === false ? null : json_decode($contents, true);
-        if (!is_array($state) || ($state['version'] ?? null) !== 1 || !is_array($state['weeks'] ?? null)) {
+        if (!is_array($state) || ($state['version'] ?? null) !== 1 || !is_array($state['weeks'] ?? null)
+            || (array_key_exists('manual', $state) && !is_array($state['manual']))) {
             throw new RuntimeException('De verzendstatus is onleesbaar. Controleer de opgeslagen status vóór opnieuw verzenden.');
         }
         return $state;
@@ -23,6 +24,8 @@ final class WeeklyMailState
         // Keep roughly a year of delivery metadata, never customer contents.
         krsort($state['weeks']);
         $state['weeks'] = array_slice($state['weeks'], 0, 54, true);
+        // Manual runs are appended in order and never retried with the same request ID.
+        $state['manual'] = array_slice($state['manual'] ?? [], -100, null, true);
         $json = json_encode($state, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
         $temporary = tempnam($this->directory, '.status-');
         if ($temporary === false) {
