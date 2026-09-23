@@ -1,5 +1,7 @@
 # AAB eID Bridge — DIGIPASS 905
 
+[Algemene README](../../README.md) · [Verhuurmodule](../README.md)
+
 ## Doel
 
 De verhuurmodule draait op Combell en kan daarom niet rechtstreeks de USB-kaartlezer op een winkel-pc aanspreken. De lokale **AAB eID Bridge** draait uitsluitend op Windows en luistert alleen op `127.0.0.1:17895`.
@@ -34,17 +36,18 @@ Een afwijkend pad kan worden ingesteld met de omgevingsvariabele `AAB_EID_BACKEN
 
 ## Installeren vanuit de repository
 
-Open PowerShell in de repository en voer uit:
+Open PowerShell in de hoofdmap van deze dashboardrepository. Stel voor de
+Aerts-host eerst de toegestane origins in zoals hieronder beschreven en voer uit:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
-.\tools\eid-bridge\install.ps1
+.\huur-module\tools\eid-bridge\install.ps1
 ```
 
 Het script:
 
 - controleert of de Belgische eID Viewer-backend aanwezig is;
-- bouwt een self-contained Windows x64 executable;
+- bouwt een self-contained Windows x86 executable voor de eID-backend;
 - installeert die onder `%LOCALAPPDATA%\AertsActionBike\EidBridge`;
 - maakt standaard een opstartsnelkoppeling;
 - start de bridge geminimaliseerd;
@@ -53,7 +56,7 @@ Het script:
 Zonder automatische start:
 
 ```powershell
-.\tools\eid-bridge\install.ps1 -NoStartup
+.\huur-module\tools\eid-bridge\install.ps1 -NoStartup
 ```
 
 ## Bridge testen
@@ -80,7 +83,9 @@ Invoke-RestMethod 'http://127.0.0.1:17895/v1/read?timeout=12000'
 
 ## Browser
 
-De productiepagina `https://warrevandermaat.be` is als toegestane origin opgenomen. De bridge accepteert geen externe netwerkverbindingen omdat hij alleen aan `127.0.0.1` bindt.
+De bridge accepteert alleen ingestelde origins en bindt aan `127.0.0.1`.
+De standaardlijst bevat nog de oorspronkelijke ontwikkelhost; configureer voor
+deze installatie expliciet de gebruikte Aerts-hostnaam.
 
 Moderne browsers kunnen bij de eerste toegang tot een lokale/loopbackdienst een toestemming voor lokaal netwerk of loopback tonen. Kies **Toestaan** op de vertrouwde Aerts Action Bike winkel-pc.
 
@@ -93,13 +98,21 @@ https://warrevandermaat.be
 https://www.warrevandermaat.be
 http://localhost:8080
 http://127.0.0.1:8080
+http://localhost:8000
+http://127.0.0.1:8000
 ```
 
-Voor een andere omgeving kan vóór het starten worden ingesteld:
+Stel voor Aerts Action Bike vóór installatie of herstart de origins in. De
+gebruikersvariabele blijft beschikbaar voor de opstartsnelkoppeling; de tweede
+regel stelt dezelfde waarde in voor de huidige PowerShell-sessie:
 
 ```powershell
-$env:AAB_EID_ALLOWED_ORIGINS='https://warrevandermaat.be;https://andere-host.example'
+[Environment]::SetEnvironmentVariable('AAB_EID_ALLOWED_ORIGINS', 'https://aertsactionbike.cc;https://www.aertsactionbike.cc', 'User')
+$env:AAB_EID_ALLOWED_ORIGINS='https://aertsactionbike.cc;https://www.aertsactionbike.cc'
 ```
+
+Deze instelling vervangt de volledige standaardlijst. Voeg lokale origins
+alleen toe als die nodig zijn en herstart een al draaiende bridge.
 
 ## Andere poort
 
@@ -126,7 +139,7 @@ Wanneer de poort wordt gewijzigd, moet ook `public/assets/eid-bridge.js` en de `
 1. controleer `http://127.0.0.1:17895/v1/health` in PowerShell;
 2. herlaad de verhuurpagina;
 3. sta lokale/loopback-netwerktoegang toe wanneer de browser dit vraagt;
-4. controleer dat de pagina via HTTPS op `warrevandermaat.be` geopend is.
+4. controleer dat de exacte hostnaam van de verhuurpagina in `AAB_EID_ALLOWED_ORIGINS` staat.
 
 ### Backend DLL niet gevonden
 

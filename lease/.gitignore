@@ -38,6 +38,13 @@ browser-connectors/o2o/*.png
 browser-connectors/o2o/*.txt
 browser-connectors/o2o/*.json
 
+# Joule debug screenshots and exported data
+browser-connectors/joule/*.png
+browser-connectors/joule/*.txt
+browser-connectors/joule/*.json
+!browser-connectors/joule/package.json
+!browser-connectors/joule/package-lock.json
+
 # Lokale root Node files indien niet gebruikt
 /package.json
 /package-lock.json
@@ -47,3 +54,7 @@ browser-connectors/o2o/*.json
 /config/auth.*.local.php
 /storage/auth/*
 !/storage/auth/.htaccess
+
+# Weekly internal email: private SMTP configuration and delivery state
+/config/weekly-mail.local.php
+/storage/weekly-mail/*

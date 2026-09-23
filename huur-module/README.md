@@ -1,5 +1,7 @@
 # Aerts Action Bike — interne verhuurmodule
 
+[Algemene README](../README.md) · [Hosting en updates](../docs/deployment.md)
+
 PHP 8.2-module voor interne fietsverhuur, planning, betalingen, contractopmaak en elektronische ondertekening.
 
 ## Functionaliteit
@@ -14,7 +16,7 @@ PHP 8.2-module voor interne fietsverhuur, planning, betalingen, contractopmaak e
 - Automatische status: nog niet betaald, deels betaald of volledig afgerekend.
 - Server-side blokkering van overlappende reservaties voor elke geselecteerde fiets.
 - Fietsbeheer met unieke interne code, uniek framenummer, framemaat, status en foto.
-- Gebruikersprofielen met beheerder- en medewerkerrol.
+- Gebruikersprofielen met beheerder-, medewerker- en financiële rol.
 - Naam-, datum- en tijdstempel bij aanmaak en afsluiting van een huur.
 - Publieke ondertekenpagina met handtekeningvak en beveiligde toegangstoken.
 - Contracthash, ondertekenmoment, IP-adres en user-agent als bewijsgegevens.
@@ -32,6 +34,30 @@ PHP 8.2-module voor interne fietsverhuur, planning, betalingen, contractopmaak e
 
 Lokaal gebruikt `composer serve` de map `public/` als document root. Voor Combell kan de volledige projectmap onder `/www/huur-module/` staan: de root-entrypoints laden de echte bestanden uit `public/` en de root-`.htaccess` routeert `/assets/...` naar `public/assets/...` en blokkeert private projectmappen.
 
+## Eerste lokale installatie
+
+Voer vanuit de hoofdmap van de repository uit. Kopieer het voorbeeld alleen
+als je nog geen eigen `.env` hebt:
+
+```powershell
+Copy-Item huur-module/.env.example huur-module/.env
+```
+
+Vul een eigen `ADMIN_EMAIL` en sterk `ADMIN_PASSWORD` in. Gebruik voor een lokale
+preview `APP_ENV=local`, `APP_URL=http://localhost:8080` en `MAIL_TRANSPORT=log`.
+De standaarddatabase is `storage/database.sqlite`; begin met een lege testdatabase.
+
+```sh
+composer install --working-dir=huur-module
+php huur-module/bin/setup.php
+composer --working-dir=huur-module serve
+```
+
+Open [de lokale verhuurmodule](http://localhost:8080/). Het setup-script maakt de
+databasetabellen en het eerste beheerdersaccount aan. Voor alle modules samen en
+werkende dashboardlinks gebruik je een lokale Apache-site zoals beschreven in
+de [algemene README](../README.md).
+
 ## Combell File Manager deployment
 
 Doelmap:
@@ -45,9 +71,9 @@ De repository bevat root-entrypoints voor `index.php`, `planning.php`, `bikes.ph
 Hierdoor zijn de normale productie-URL's:
 
 ```text
-https://www.aertsactionbike.cc/huur-module/
-https://www.aertsactionbike.cc/huur-module/planning.php
-https://www.aertsactionbike.cc/huur-module/bikes.php
+https://aertsactionbike.cc/huur-module/
+https://aertsactionbike.cc/huur-module/planning.php
+https://aertsactionbike.cc/huur-module/bikes.php
 ```
 
 Directe links onder `/public/*.php` worden door `.htaccess` terug naar de root-route gestuurd. `public/assets/` blijft de fysieke assetmap; `/assets/...` wordt intern daarheen gerouteerd.
@@ -66,17 +92,20 @@ De lokale `.env` kan localhost-instellingen bevatten en de lokale database kan t
 
 ## Bestaande installatie bijwerken
 
-Maak eerst een databaseback-up en voer daarna uit:
+Volg eerst de [algemene updateprocedure](../docs/deployment.md), inclusief een
+consistente back-up van database en private bestanden. Gebruik de gekozen branch
+van deze dashboardrepository. Voer bij wijzigingen aan afhankelijkheden of het
+databaseschema vanuit de repository uit:
 
-```bash
-mkdir -p ~/backups/huur-module
-cp storage/database.sqlite ~/backups/huur-module/database-$(date +%Y%m%d-%H%M%S).sqlite
-
-git pull origin agent/initial-rental-module
-composer install --no-dev --optimize-autoloader
-php bin/setup.php
-chmod -R 775 storage
+```sh
+composer install --working-dir=huur-module --no-dev --optimize-autoloader
+php huur-module/bin/setup.php
 ```
+
+Het setup-script werkt op de database uit je `.env`. Bij een SFTP-installatie
+werkt lokaal uitvoeren alleen de lokale database bij; een benodigde
+productiemigratie moet op de hosting tegen de bedoelde database worden uitgevoerd.
+Geef de PHP-gebruiker gerichte schrijfrechten op `storage/`.
 
 `php bin/setup.php`:
 
@@ -164,9 +193,13 @@ MAIL_TRANSPORT=log
 
 Mailvoorbeelden worden opgeslagen onder `storage/private/mail/`.
 
-Voor echte verzending is een ondersteunde SMTP- of OAuth-configuratie nodig. Plaats wachtwoorden en sleutels uitsluitend in `.env` en nooit in GitHub.
+Voor echte verzending configureer je het passende mailtransport en de bijbehorende
+SMTP- of Microsoft Graph-gegevens in `.env`. Plaats wachtwoorden en sleutels nooit
+in GitHub. Test mailinstellingen uitsluitend met een daarvoor bestemd adres.
 
 ## Controle na update
+
+Voer deze gerichte controles uit vanuit `huur-module/`:
 
 ```bash
 php -l app/repositories.php
@@ -175,7 +208,6 @@ php -l public/planning.php
 php -l public/reservation-new.php
 php -l public/reservation.php
 php -l public/api-bike-availability.php
-php bin/setup.php
 ```
 
 Open daarna de planning en test één dossier met minstens twee fietsen en één deelbetaling.

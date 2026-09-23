@@ -142,6 +142,10 @@ function navGroupActive(array $pages, string $currentPage): string
         Contracten verlopen
     </a>
 
+    <a class="<?= e(navActive('weekly-mail.php', $currentPage)) ?>" href="weekly-mail.php">
+        Dinsdagmail
+    </a>
+
     <a class="<?= e(navActive('expiring-maintenance.php', $currentPage)) ?>" href="expiring-maintenance.php">
         Onderhoud verloopt
     </a>
