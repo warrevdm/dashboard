@@ -152,6 +152,19 @@ private configuratie weigert de nieuwe versie toegang, ook voor bestaande sessie
    toegangssleutel. Bewaar die in je wachtwoordmanager. Het script is uitsluitend
    via de terminal te gebruiken en overschrijft geen bestaande configuratie.
 
+   Als de oudere generator op Windows/OneDrive meldt dat de doelmap schrijfbaar
+   moet zijn, haal dan de bijgewerkte generator op en probeer vanuit de projectmap:
+
+   ```sh
+   php lease/scripts/configure-auth.php --output=lease/config/auth.local.php
+   ```
+
+   De generator probeert nu daadwerkelijk een bestand in de doelmap aan te maken.
+   Bij een echte schrijffout toont hij het betrokken pad. Maak de OneDrive-map
+   lokaal beschikbaar en controleer de schrijfrechten voor je eigen gebruiker.
+   Bij een ontbrekende map controleer je het opgegeven pad. Het expliciete
+   `--output`-argument heeft voorrang op `AAB_LEASE_AUTH_FILE`.
+
 2. Upload `config/auth.local.php` via SFTP naar dezelfde plaats op de server vóór
    je de overige gewijzigde leasebestanden uploadt. Dit bestand wordt bewust niet
    door Git meegenomen. Upload ook de meegeleverde `.htaccess`-bestanden, inclusief

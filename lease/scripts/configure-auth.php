@@ -18,8 +18,9 @@ if (file_exists($path) && !isset($options['rotate'])) {
 }
 
 $directory = realpath(dirname($path));
-if ($directory === false || !is_writable($directory)) {
-    fwrite(STDERR, "De doelmap moet bestaan en schrijfbaar zijn.\n");
+if ($directory === false || !is_dir($directory)) {
+    fwrite(STDERR, "De doelmap bestaat niet of is niet bereikbaar: " . dirname($path) . "\n"
+        . "Controleer het pad; gebruik vanuit de projectmap eventueel --output=lease/config/auth.local.php.\n");
     exit(1);
 }
 $path = $directory . DIRECTORY_SEPARATOR . basename($path);
@@ -43,15 +44,28 @@ if (isset($options['rotate']) && is_file($path)) {
 }
 $contents = "<?php\n\n// Private installation credentials. Never commit this file.\nreturn " . var_export($config, true) . ";\n";
 umask(0077);
-$temporary = tempnam($directory, '.lease-auth-');
-if ($temporary === false || file_put_contents($temporary, $contents, LOCK_EX) !== strlen($contents)) {
-    fwrite(STDERR, "Configuratie kon niet worden geschreven.\n");
+// Directory metadata can report read-only on Windows while creating files is allowed.
+// Try the real operation, exclusively in the requested directory; never fall back to /tmp.
+$temporary = $directory . DIRECTORY_SEPARATOR . '.lease-auth-' . bin2hex(random_bytes(12));
+$handle = @fopen($temporary, 'xb');
+if ($handle === false) {
+    fwrite(STDERR, "PHP kan geen configuratiebestand aanmaken in: " . $directory . "\n"
+        . "Controleer schrijfrechten en maak een eventuele OneDrive-map lokaal beschikbaar.\n");
     exit(1);
 }
-chmod($temporary, 0600);
-if (!rename($temporary, $path)) {
-    unlink($temporary);
-    fwrite(STDERR, "Configuratie kon niet worden geïnstalleerd.\n");
+$written = @fwrite($handle, $contents);
+$flushed = @fflush($handle);
+fclose($handle);
+if ($written !== strlen($contents) || !$flushed) {
+    @unlink($temporary);
+    fwrite(STDERR, "Configuratie kon niet volledig worden geschreven in: " . $directory . "\n");
+    exit(1);
+}
+@chmod($temporary, 0600);
+if (!@rename($temporary, $path)) {
+    @unlink($temporary);
+    fwrite(STDERR, "Configuratie kon niet worden geïnstalleerd op: " . $path . "\n"
+        . "Controleer schrijfrechten en of het bestand door een ander programma wordt vastgehouden.\n");
     exit(1);
 }
 

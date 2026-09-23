@@ -201,15 +201,45 @@ async function newPHP() {
   php.exit();
   // Exercise the real installer through CLI; never print its generated credentials.
   const generated = path.join(temporary, 'generated.php');
-  async function configure(extra = []) {
+  const installer = path.join(fixture, 'scripts/configure-auth.php');
+  async function configure(extra = [], {output = generated, script = installer} = {}) {
     const cli = await newPHP();
-    const result = await cli.cli(['php', path.join(fixture, 'scripts/configure-auth.php'), `--output=${generated}`, ...extra]);
-    return {status: await result.exitCode, text: await result.stdoutText, errors: await result.stderrText};
+    const result = await cli.cli(['php', script, `--output=${output}`, ...extra]);
+    const response = {status: await result.exitCode, text: await result.stdoutText, errors: await result.stderrText};
+    try { cli.exit(); } catch {}
+    return response;
   }
   check((await configure()).status === 0 && fs.existsSync(generated), 'CLI generates private configuration');
   const first = fs.readFileSync(generated, 'utf8');
   check((await configure()).status !== 0 && fs.readFileSync(generated, 'utf8') === first, 'CLI refuses accidental overwrite');
   check((await configure(['--rotate'])).status === 0 && fs.readFileSync(generated, 'utf8') !== first, 'CLI explicitly rotates credentials');
+  const spacedDirectory = path.join(temporary, 'OneDrive - Example Company', 'Lease configuration');
+  fs.mkdirSync(spacedDirectory, {recursive: true});
+  const spacedOutput = path.join(spacedDirectory, 'auth.local.php');
+  const spacedResult = await configure([], {output: spacedOutput});
+  check(spacedResult.status === 0 && spacedResult.errors === '' && fs.existsSync(spacedOutput), 'CLI accepts a destination with spaces');
+  const missingResult = await configure([], {output: path.join(temporary, 'missing-directory', 'auth.local.php')});
+  check(missingResult.status === 1 && missingResult.text === '' && missingResult.errors.includes('De doelmap bestaat niet'), 'Missing destination is diagnosed without exposing credentials');
+  // Override filesystem calls only in isolated copies, to simulate platform metadata and I/O failures.
+  function simulatedInstaller(name, functions) {
+    const script = path.join(fixture, 'scripts', name + '.php');
+    fs.writeFileSync(script, '<?php namespace AuthSetupFixture; ' + functions + '\n?>\n' + fs.readFileSync(installer, 'utf8'));
+    return script;
+  }
+  const metadataScript = simulatedInstaller('readonly-metadata', 'function is_writable($path) { return false; }');
+  const metadataOutput = path.join(spacedDirectory, 'metadata.php');
+  const metadataResult = await configure([], {output: metadataOutput, script: metadataScript});
+  check(metadataResult.status === 0 && metadataResult.errors === '' && fs.existsSync(metadataOutput), 'Actual file creation succeeds despite read-only directory metadata');
+  const deniedScript = simulatedInstaller('denied-write', 'function fopen($path, $mode) { return false; }');
+  const deniedOutput = path.join(spacedDirectory, 'denied.php');
+  const deniedResult = await configure([], {output: deniedOutput, script: deniedScript});
+  check(deniedResult.status === 1 && deniedResult.text === '' && deniedResult.errors.includes(spacedDirectory) && !fs.existsSync(deniedOutput), 'Actual write denial fails closed and identifies the directory');
+  const renameScript = simulatedInstaller('failed-rename', 'function rename($from, $to) { return false; }');
+  const beforeFailedRotation = fs.readFileSync(generated, 'utf8');
+  const failedRotation = await configure(['--rotate'], {script: renameScript});
+  check(failedRotation.status === 1 && failedRotation.text === '' && failedRotation.errors.includes(generated), 'Failed installation does not disclose a new key');
+  check(fs.readFileSync(generated, 'utf8') === beforeFailedRotation, 'Failed rotation preserves the previous private configuration');
+  check(!fs.readdirSync(temporary).some(name => name.startsWith('.lease-auth-')), 'Failed installation cleans up the temporary configuration');
   console.log(`PASS: ${checks} checks using PHP ${version}. No live services used.`);
 })().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => {
   try { activePHP?.exit(); } catch {}
