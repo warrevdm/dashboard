@@ -109,17 +109,20 @@ function navGroupActive(array $pages, string $currentPage): string
                 Excel importeren
             </a>
 
-            <a href="import-source-o2o.php">
-                O2O import
-            </a>
+            <form method="POST" action="import-source-o2o.php" class="nav-import-form">
+                <?= Auth::csrfField() ?>
+                <button type="submit">O2O import</button>
+            </form>
 
-            <a href="import-source-joule.php">
-                Joule import
-            </a>
+            <form method="POST" action="import-source-joule.php" class="nav-import-form">
+                <?= Auth::csrfField() ?>
+                <button type="submit">Joule import</button>
+            </form>
 
-            <a href="import-source-cyclobility.php">
-                Cyclobility import
-            </a>
+            <form method="POST" action="import-source-cyclobility.php" class="nav-import-form">
+                <?= Auth::csrfField() ?>
+                <button type="submit">Cyclobility import</button>
+            </form>
         </div>
     </div>
 

@@ -7,7 +7,8 @@ Auth::sendSecurityHeaders();
 
 header("Content-Security-Policy: default-src 'self'; style-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
 
-$next = (string) ($_GET['next'] ?? $_POST['next'] ?? 'index.php');
+$nextValue = $_GET['next'] ?? $_POST['next'] ?? 'index.php';
+$next = is_string($nextValue) ? $nextValue : 'index.php';
 $error = null;
 $loggedOut = isset($_GET['logged_out']);
 
@@ -16,12 +17,12 @@ if (Auth::isAuthenticated()) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $csrfToken = (string) ($_POST['csrf_token'] ?? '');
+    $csrfToken = $_POST['csrf_token'] ?? null;
 
     if (!Auth::verifyCsrf($csrfToken)) {
         $error = 'Je sessie is verlopen. Vernieuw de pagina en probeer opnieuw.';
     } else {
-        $accessKey = (string) ($_POST['access_key'] ?? '');
+        $accessKey = is_string($_POST['access_key'] ?? null) ? $_POST['access_key'] : '';
         $remember = isset($_POST['remember']);
         $result = Auth::attempt($accessKey, $remember);
 
@@ -90,7 +91,7 @@ function e($value): string
                 <div class="login-card-header">
                     <span class="login-kicker">Welkom terug</span>
                     <h2>Log in om verder te gaan</h2>
-                    <p>Gebruik de persoonlijke toegangssleutel voor deze omgeving.</p>
+                    <p>Gebruik de toegangssleutel voor deze omgeving.</p>
                 </div>
 
                 <?php if ($loggedOut): ?>

@@ -1,0 +1,8 @@
+# Apache 2.4: the application may be installed below /lease/ in the webroot.
+Options -Indexes
+RewriteEngine On
+RewriteRule ^(?:app|config|storage|browser-connectors|database|vendor|scripts|tests)(?:/|$) - [F,END,NC]
+RewriteRule (^|/)\. - [F,END]
+<FilesMatch "(?i)\.(?:sql|sqlite|db|log|bak|ini|env|ya?ml|md|lock)$">
+    Require all denied
+</FilesMatch>

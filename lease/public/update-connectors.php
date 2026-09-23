@@ -1,8 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../app/Auth.php';
-
-Auth::requireLogin();
+require_once __DIR__ . '/../app/bootstrap.php';
 
 function e($value): string
 {
@@ -32,14 +30,13 @@ $connectors = [
 
 $storageLogs = $projectRoot . '\\storage\\logs';
 
-if (!is_dir($storageLogs)) {
-    mkdir($storageLogs, 0777, true);
-}
-
 $message = null;
 $error = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!is_dir($storageLogs)) {
+        mkdir($storageLogs, 0700, true);
+    }
     $connectorKey = (string) ($_POST['connector'] ?? '');
 
     if (!isset($connectors[$connectorKey])) {
@@ -170,14 +167,18 @@ function readLogTail(string $path, int $maxLines = 40): string
                 </p>
 
                 <form method="POST" onsubmit="return confirm('Update voor <?= e($connector['label']) ?> starten?');">
+                    <?= Auth::csrfField() ?>
                     <input type="hidden" name="connector" value="<?= e($key) ?>">
                     <button type="submit">Update <?= e($connector['label']) ?> starten</button>
                 </form>
 
                 <div class="quick-actions">
-                    <a class="button-secondary" href="<?= e($connector['import_url']) ?>">
-                        Naar importpreview
-                    </a>
+                    <form method="POST" action="<?= e($connector['import_url']) ?>">
+                        <?= Auth::csrfField() ?>
+                        <button type="submit" class="button-secondary">
+                            Naar importpreview
+                        </button>
+                    </form>
                 </div>
             </article>
         <?php endforeach; ?>

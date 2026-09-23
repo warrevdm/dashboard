@@ -67,6 +67,7 @@ $bikeTypes = [
     </section>
 
     <form action="update-contract.php" method="POST" class="card">
+        <?= Auth::csrfField() ?>
         <input type="hidden" name="id" value="<?= e($order['id']) ?>">
 
         <h2>Basisgegevens</h2>

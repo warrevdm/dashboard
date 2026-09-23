@@ -173,6 +173,7 @@ $createdRecordCount = count($createdRecords);
             method="POST"
             onsubmit="return confirm('Ben je zeker dat je deze import wil terugdraaien? Alleen nieuw aangemaakte records worden verwijderd. Updates worden niet teruggedraaid.');"
         >
+            <?= Auth::csrfField() ?>
             <input type="hidden" name="batch_id" value="<?= e($batch['id']) ?>">
             <button type="submit" class="button-danger">Nieuwe records uit deze import verwijderen</button>
         </form>
