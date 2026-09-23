@@ -4,116 +4,46 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow, noarchive">
-  <meta name="description" content="De centrale werkplek voor het team van Aerts Action Bike. Open verhuur, communicatie en beheer vanuit één overzicht.">
+  <meta name="description" content="Meteen aan de slag bij Aerts Action Bike: start een verhuur, mail een klant of registreer een vervangfiets.">
   <meta name="theme-color" content="#f5f7f3">
-  <title>Dashboard · Aerts Action Bike</title>
+  <title>Snelstart · Aerts Action Bike</title>
   <link rel="icon" href="/home/assets/favicon.svg" type="image/svg+xml">
   <link rel="preload" href="/home/assets/fonts/league-spartan.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/home/assets/dashboard.css?v=1">
-  <script src="/home/assets/dashboard.js?v=1" defer></script>
+  <link rel="stylesheet" href="/home/assets/dashboard.css?v=2">
 </head>
 <body>
-  <a class="skip-link" href="#main">Naar de inhoud</a>
   <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <defs>
-      <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="6" height="6" rx="1.5"/><rect x="14.5" y="3.5" width="6" height="6" rx="1.5"/><rect x="3.5" y="14.5" width="6" height="6" rx="1.5"/><rect x="14.5" y="14.5" width="6" height="6" rx="1.5"/></symbol>
       <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
-      <symbol id="i-external" viewBox="0 0 24 24"><path d="M7 17 17 7M7 7h10v10"/></symbol>
-      <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-13 4h2m4 0h2m-8 3h2"/></symbol>
-      <symbol id="i-bike" viewBox="0 0 24 24"><circle cx="5.5" cy="16" r="4"/><circle cx="18.5" cy="16" r="4"/><path d="m5.5 16 5-9 5 9h-10m4-12h3m3 0h3l2 7M9 7h9"/></symbol>
-      <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/></symbol>
-      <symbol id="i-package" viewBox="0 0 24 24"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Zm0 10v10M3 7l9 5 9-5M7.5 4.5l9 5V14"/></symbol>
-      <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 11a9 9 0 1 1 2.7 7.4M3 4v7h7m2-4v5l3 2"/></symbol>
-      <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 7h15m-4-4 4 4-4 4M20 17H5m4-4-4 4 4 4"/></symbol>
-      <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M20 8V5a2 2 0 0 0-2-2L5 6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8H5m16 5h-6v4h6"/><path d="M17.5 15h.01"/></symbol>
-      <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M2 21v-3a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v3m0-17a4 4 0 0 1 0 8m3 3a5 5 0 0 1 3 4v2"/></symbol>
-      <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.3.9-4.6 4.4 1.1 6.3-5.6-3-5.6 3 1.1-6.3L2.9 9.6l6.3-.9L12 3Z"/></symbol>
-      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
       <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
-      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/></symbol>
-      <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
-      <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></symbol>
+      <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/></symbol>
+      <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 7h15m-4-4 4 4-4 4M20 17H5m4-4-4 4 4 4"/></symbol>
     </defs>
   </svg>
 
-  <aside class="sidebar" aria-label="Hoofdnavigatie">
-    <a class="brand" href="/home/" aria-label="Aerts Action Bike — dashboard">
-      <img src="/home/assets/aerts-logo.svg" width="176" height="68" alt="Aerts Action Bike">
-    </a>
-    <div class="workspace-label"><span></span> TEAMWERKPLEK</div>
-    <nav class="navigation" aria-label="Tools per categorie">
-      <p class="nav-label">WERKOMGEVING</p>
-      <a class="nav-item is-active" href="#tools" data-category-filter="all" aria-current="true"><svg aria-hidden="true" class="icon"><use href="#i-grid"/></svg>Overzicht<span class="nav-count">9</span></a>
-      <a class="nav-item" href="#tools" data-category-filter="verhuur"><svg aria-hidden="true" class="icon"><use href="#i-bike"/></svg>Verhuur & fietsen</a>
-      <a class="nav-item" href="#tools" data-category-filter="communicatie"><svg aria-hidden="true" class="icon"><use href="#i-mail"/></svg>Communicatie</a>
-      <a class="nav-item" href="#tools" data-category-filter="beheer"><svg aria-hidden="true" class="icon"><use href="#i-users"/></svg>Beheer</a>
-      <a class="nav-item favorites-nav" href="#tools" data-category-filter="favorites" data-enhanced-only hidden><svg aria-hidden="true" class="icon"><use href="#i-star"/></svg>Favorieten<span class="nav-count" id="favorite-count">0</span></a>
-    </nav>
-    <div class="sidebar-bottom">
-      <a class="sidebar-shop" href="https://www.aertsactionbike.be/" target="_blank" rel="noopener noreferrer"><svg aria-hidden="true" class="icon"><use href="#i-globe"/></svg>Naar de webshop<svg aria-hidden="true" class="icon small"><use href="#i-external"/></svg><span class="sr-only"> (nieuw tabblad)</span></a>
-      <div class="sidebar-signoff"><span class="team-mark">aab<span>.</span></span><div><strong>Aerts Action Bike</strong><span>Net iets meer. Ook als team.</span></div></div>
-    </div>
-  </aside>
-
-  <div class="workspace">
-    <header class="topbar">
-      <div class="breadcrumb"><span>Werkplek</span><span class="breadcrumb-slash">/</span><strong>Overzicht</strong></div>
-      <div class="topbar-right"><time id="current-date">Aerts Action Bike · Kalmthout</time><span class="team-avatar" aria-label="Team Aerts Action Bike">AB</span></div>
-    </header>
-    <main id="main" class="main-content">
-      <div class="page-heading"><div><p class="eyebrow" id="greeting">Welkom, team Aerts.</p><h1>Jouw werkdag. Eén overzicht.</h1></div><span class="home-label">AAB / HOME</span></div>
-
-      <div class="welcome-grid">
-        <section class="welcome-banner" aria-labelledby="welcome-title">
-          <div class="banner-copy"><span class="banner-eyebrow"><span></span>SAMEN VOORUIT</span><h2 id="welcome-title">Alles bij de hand.<br>Meer tijd voor de klant.</h2><p>Van de eerste afhaalmail tot de laatste retour.<br>Je vertrouwde tools, op één plek.</p><a class="banner-button" href="/huur-module/planning.php">Open de verhuurplanning<svg aria-hidden="true" class="icon"><use href="#i-arrow"/></svg></a></div>
-          <div class="route-art" aria-hidden="true"><svg viewBox="0 0 320 310" fill="none"><path d="M295-15v62c0 35-24 59-61 59h-88c-30 0-52 20-52 50s22 50 52 50h76c33 0 57 21 57 56v68" stroke="currentColor" stroke-width="38"/><path d="M295-15v62c0 35-24 59-61 59h-88c-30 0-52 20-52 50s22 50 52 50h76c33 0 57 21 57 56v68" stroke="#467455" stroke-width="1.5" stroke-dasharray="4 9"/><circle cx="96" cy="156" r="27" fill="#60bb46"/><path d="m85 156 8 8 14-16" stroke="#153e28" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="278" cy="270" r="9" fill="#a5dca2"/></svg><span>NET IETS MEER.</span></div>
-        </section>
-        <section class="quick-start" aria-labelledby="quick-title"><div class="section-kicker"><span class="quick-dot"></span>SNELSTART</div><h2 id="quick-title">Meteen aan de slag</h2><div class="quick-links">
-          <a href="/huur-module/reservation-new.php"><span class="quick-icon"><svg aria-hidden="true" class="icon"><use href="#i-plus"/></svg></span><span><strong>Nieuwe verhuur</strong><small>Maak een reservatie aan</small></span><svg aria-hidden="true" class="icon quick-arrow"><use href="#i-arrow"/></svg></a>
-          <a href="/mailing-system/index.php"><span class="quick-icon"><svg aria-hidden="true" class="icon"><use href="#i-mail"/></svg></span><span><strong>Klant mailen</strong><small>Nieuwe fiets klaar voor afhaling</small></span><svg aria-hidden="true" class="icon quick-arrow"><use href="#i-arrow"/></svg></a>
-          <a href="/huur-module/quick-replacement.php"><span class="quick-icon"><svg aria-hidden="true" class="icon"><use href="#i-swap"/></svg></span><span><strong>Vervangfiets meegeven</strong><small>Registreer een vervangfiets</small></span><svg aria-hidden="true" class="icon quick-arrow"><use href="#i-arrow"/></svg></a>
-        </div></section>
-      </div>
-
-      <section class="tools-section" id="tools" aria-labelledby="tools-title">
-        <div class="tools-heading"><div class="tools-title-line"><h2 id="tools-title">Alle tools</h2><span class="result-count" id="result-count">9 tools</span></div><div class="search-field" data-enhanced-only hidden><svg aria-hidden="true" class="icon"><use href="#i-search"/></svg><label class="sr-only" for="tool-search">Zoek een tool</label><input type="search" id="tool-search" placeholder="Zoek een tool…" autocomplete="off" spellcheck="false"><button type="button" class="clear-search" id="clear-search" aria-label="Zoekopdracht wissen" hidden><svg aria-hidden="true" class="icon"><use href="#i-close"/></svg></button><kbd aria-hidden="true">/</kbd></div></div>
-        <div class="filter-row" data-enhanced-only hidden><div class="filter-options" role="group" aria-label="Filter tools"><button class="filter-button is-active" type="button" data-category-filter="all" aria-pressed="true">Alles</button><button class="filter-button" type="button" data-category-filter="verhuur" aria-pressed="false">Verhuur & fietsen</button><button class="filter-button" type="button" data-category-filter="communicatie" aria-pressed="false">Communicatie</button><button class="filter-button" type="button" data-category-filter="beheer" aria-pressed="false">Beheer</button></div><span class="favorites-hint"><svg aria-hidden="true" class="icon small"><use href="#i-star"/></svg>Bewaar je favorieten</span></div>
-
-        <div class="tool-grid" id="tool-grid">
-          <article class="tool-card" data-tool="planning" data-category="verhuur" data-search="huur verhuurplanning planning agenda kalender beschikbaarheid retour afhaling reserveren">
-            <a class="tool-link" href="/huur-module/planning.php"><span class="tool-icon green"><svg aria-hidden="true" class="icon"><use href="#i-calendar"/></svg></span><span class="tool-category">VERHUUR & FIETSEN</span><h3>Verhuurplanning</h3><p>Bekijk beschikbaarheid, afhalingen en retouren in de agenda.</p><span class="tool-footer">Open planning<svg aria-hidden="true" class="icon"><use href="#i-arrow"/></svg></span></a><button class="favorite-button" type="button" data-favorite="planning" aria-label="Verhuurplanning toevoegen aan favorieten" aria-pressed="false" data-enhanced-only hidden><svg aria-hidden="true" class="icon"><use href="#i-star"/></svg></button>
-          </article>
-          <article class="tool-card" data-tool="fiets-mail" data-category="communicatie" data-search="mail mailing nieuwe fiets klaar ophalen afhaling afspraak verkoop klant">
-            <a class="tool-link" href="/mailing-system/index.php"><span class="tool-icon blue"><svg aria-hidden="true" class="icon"><use href="#i-mail"/></svg></span><span class="tool-category">COMMUNICATIE</span><h3>Nieuwe fiets klaar</h3><p>Mail de klant en laat de afhaling van een nieuwe fiets inplannen.</p><span class="tool-footer">Maak een afhaalmail<svg aria-hidden="true" class="icon"><use href="#i-arrow"/></svg></span></a><button class="favorite-button" type="button" data-favorite="fiets-mail" aria-label="Nieuwe fiets klaar toevoegen aan favorieten" aria-pressed="false" data-enhanced-only hidden><svg aria-hidden="true" class="icon"><use href="#i-star"/></svg></button>
-          </article>
-          <article class="tool-card" data-tool="collect-go" data-category="communicatie" data-search="mail mailing collect go bestelling product afhalen ophalen accessoires winkel">
-            <a class="tool-link" href="/mailing-system/collect-go.php"><span class="tool-icon blue"><svg aria-hidden="true" class="icon"><use href="#i-package"/></svg></span><span class="tool-category">COMMUNICATIE</span><h3>Collect & Go</h3><p>Laat weten dat een bestelling klaarstaat om af te halen.</p><span class="tool-footer">Maak een afhaalmail<svg aria-hidden="true" class="icon"><use href="#i-arrow"/></svg></span></a><button class="favorite-button" type="button" data-favorite="collect-go" aria-label="Collect & Go toevoegen aan favorieten" aria-pressed="false" data-enhanced-only hidden><svg aria-hidden="true" class="icon"><use href="#i-star"/></svg></button>
-          </article>
-          <article class="tool-card" data-tool="fietsen" data-category="verhuur" data-search="fiets fietsenbeheer vloot huur test vervangfiets model foto framenummer onderhoud">
-            <a class="tool-link" href="/huur-module/bikes.php"><span class="tool-icon green"><svg aria-hidden="true" class="icon"><use href="#i-bike"/></svg></span><span class="tool-category">VERHUUR & FIETSEN</span><h3>Fietsenbeheer</h3><p>Beheer huur-, test- en vervangfietsen, foto's en fietsgegevens.</p><span class="tool-footer">Bekijk alle fietsen<svg aria-hidden="true" class="icon"><use href="#i-arrow"/></svg></span></a><button class="favorite-button" type="button" data-favorite="fietsen" aria-label="Fietsenbeheer toevoegen aan favorieten" aria-pressed="false" data-enhanced-only hidden><svg aria-hidden="true" class="icon"><use href="#i-star"/></svg></button>
-          </article>
-          <article class="tool-card" data-tool="vervangfiets" data-category="verhuur" data-search="snelle vervangfiets werkplaats reparatie herstelling onderhoud meegeven uitlenen registratie">
-            <a class="tool-link" href="/huur-module/quick-replacement.php"><span class="tool-icon green"><svg aria-hidden="true" class="icon"><use href="#i-swap"/></svg></span><span class="tool-category">VERHUUR & FIETSEN</span><h3>Snelle vervangfiets</h3><p>Registreer een vervangfiets voor een klant van de werkplaats.</p><span class="tool-footer"><span>Registreer uitgifte <span class="access-badge"><svg aria-hidden="true" class="icon"><use href="#i-lock"/></svg>Beperkte toegang</span></span><svg aria-hidden="true" class="icon"><use href="#i-arrow"/></svg></span></a><button class="favorite-button" type="button" data-favorite="vervangfiets" aria-label="Snelle vervangfiets toevoegen aan favorieten" aria-pressed="false" data-enhanced-only hidden><svg aria-hidden="true" class="icon"><use href="#i-star"/></svg></button>
-          </article>
-          <article class="tool-card" data-tool="historiek" data-category="communicatie" data-search="communicatiehistoriek geschiedenis verzonden mails email klant dubbel zoeken overzicht">
-            <a class="tool-link" href="/mailing-system/communication-dashboard.php"><span class="tool-icon blue"><svg aria-hidden="true" class="icon"><use href="#i-history"/></svg></span><span class="tool-category">COMMUNICATIE</span><h3>Communicatiehistoriek</h3><p>Zoek eerdere klantmails en controleer wie al een bericht kreeg.</p><span class="tool-footer">Bekijk verzonden mails<svg aria-hidden="true" class="icon"><use href="#i-arrow"/></svg></span></a><button class="favorite-button" type="button" data-favorite="historiek" aria-label="Communicatiehistoriek toevoegen aan favorieten" aria-pressed="false" data-enhanced-only hidden><svg aria-hidden="true" class="icon"><use href="#i-star"/></svg></button>
-          </article>
-          <article class="tool-card" data-tool="kasboek" data-category="beheer" data-search="kasboek betalingen betaal cash bancontact saldo financieel finance afrekening">
-            <a class="tool-link" href="/huur-module/cashbook.php"><span class="tool-icon sand"><svg aria-hidden="true" class="icon"><use href="#i-wallet"/></svg></span><span class="tool-category">BEHEER</span><h3>Kasboek</h3><p>Volg geregistreerde betalingen en openstaande bedragen op.</p><span class="tool-footer"><span>Open kasboek <span class="access-badge"><svg aria-hidden="true" class="icon"><use href="#i-lock"/></svg>Beperkte toegang</span></span><svg aria-hidden="true" class="icon"><use href="#i-arrow"/></svg></span></a><button class="favorite-button" type="button" data-favorite="kasboek" aria-label="Kasboek toevoegen aan favorieten" aria-pressed="false" data-enhanced-only hidden><svg aria-hidden="true" class="icon"><use href="#i-star"/></svg></button>
-          </article>
-          <article class="tool-card" data-tool="verhuur-gebruikers" data-category="beheer" data-search="verhuur gebruikers accounts medewerkers toegang rechten admin beheerder">
-            <a class="tool-link" href="/huur-module/users.php"><span class="tool-icon sand"><svg aria-hidden="true" class="icon"><use href="#i-users"/></svg></span><span class="tool-category">BEHEER</span><h3>Gebruikers verhuur</h3><p>Beheer medewerkers en hun toegangsrechten in de verhuurmodule.</p><span class="tool-footer"><span>Beheer accounts <span class="access-badge"><svg aria-hidden="true" class="icon"><use href="#i-lock"/></svg>Beheerders</span></span><svg aria-hidden="true" class="icon"><use href="#i-arrow"/></svg></span></a><button class="favorite-button" type="button" data-favorite="verhuur-gebruikers" aria-label="Gebruikers verhuur toevoegen aan favorieten" aria-pressed="false" data-enhanced-only hidden><svg aria-hidden="true" class="icon"><use href="#i-star"/></svg></button>
-          </article>
-          <article class="tool-card" data-tool="mailing-gebruikers" data-category="beheer" data-search="mailing gebruikers accounts medewerkers toegang rechten admin beheerder wachtwoord reset">
-            <a class="tool-link" href="/mailing-system/admin.php"><span class="tool-icon sand"><svg aria-hidden="true" class="icon"><use href="#i-users"/></svg></span><span class="tool-category">BEHEER</span><h3>Gebruikers mailing</h3><p>Beheer accounts en wachtwoorden voor de interne mailingtool.</p><span class="tool-footer"><span>Beheer accounts <span class="access-badge"><svg aria-hidden="true" class="icon"><use href="#i-lock"/></svg>Beheerders</span></span><svg aria-hidden="true" class="icon"><use href="#i-arrow"/></svg></span></a><button class="favorite-button" type="button" data-favorite="mailing-gebruikers" aria-label="Gebruikers mailing toevoegen aan favorieten" aria-pressed="false" data-enhanced-only hidden><svg aria-hidden="true" class="icon"><use href="#i-star"/></svg></button>
-          </article>
-        </div>
-        <div class="empty-state" id="empty-state" hidden><span class="empty-icon"><svg aria-hidden="true" class="icon"><use href="#i-search"/></svg></span><h3 id="empty-title">Geen tools gevonden</h3><p id="empty-description">Probeer een andere zoekterm of bekijk alle tools.</p><button type="button" class="reset-button" id="reset-filters">Toon alle tools<svg aria-hidden="true" class="icon"><use href="#i-arrow"/></svg></button></div>
-        <p class="sr-only" id="filter-status" role="status" aria-live="polite" aria-atomic="true"></p>
-        <p class="storage-notice" id="storage-notice" role="status" hidden>Je browser kan favorieten niet bewaren. Je selectie blijft beschikbaar zolang deze pagina openstaat.</p>
-      </section>
-      <footer class="page-footer"><p><svg aria-hidden="true" class="icon small"><use href="#i-lock"/></svg>Elke tool gebruikt zijn eigen login en toegangsrechten.</p><span>Aerts Action Bike · Kalmthout</span></footer>
-    </main>
-  </div>
+  <main class="workspace">
+    <img class="brand" src="/home/assets/aerts-logo.svg" width="176" height="68" alt="Aerts Action Bike">
+    <section class="quick-start" aria-labelledby="quick-title">
+      <p class="section-kicker"><span class="quick-dot" aria-hidden="true"></span>Snelstart</p>
+      <h1 id="quick-title">Meteen aan de slag</h1>
+      <nav class="quick-links" aria-label="Snelstart">
+        <a href="/huur-module/reservation-new.php">
+          <span class="quick-icon"><svg aria-hidden="true" class="icon"><use href="#i-plus"/></svg></span>
+          <span class="quick-copy"><strong>Nieuwe verhuur</strong><small>Maak een reservatie aan</small></span>
+          <svg aria-hidden="true" class="icon quick-arrow"><use href="#i-arrow"/></svg>
+        </a>
+        <a href="/mailing-system/index.php">
+          <span class="quick-icon"><svg aria-hidden="true" class="icon"><use href="#i-mail"/></svg></span>
+          <span class="quick-copy"><strong>Klant mailen</strong><small>Nieuwe fiets klaar voor afhaling</small></span>
+          <svg aria-hidden="true" class="icon quick-arrow"><use href="#i-arrow"/></svg>
+        </a>
+        <a href="/huur-module/quick-replacement.php">
+          <span class="quick-icon"><svg aria-hidden="true" class="icon"><use href="#i-swap"/></svg></span>
+          <span class="quick-copy"><strong>Vervangfiets meegeven</strong><small>Registreer een vervangfiets</small></span>
+          <svg aria-hidden="true" class="icon quick-arrow"><use href="#i-arrow"/></svg>
+        </a>
+      </nav>
+    </section>
+  </main>
 </body>
 </html>
