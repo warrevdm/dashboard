@@ -1,5 +1,7 @@
 # Aerts Action Bike — snelstart
 
+[Algemene README](../README.md) · [Hosting en updates](../docs/deployment.md)
+
 Open `/home/` op dezelfde host als de bestaande verhuurmodule en mailingtool.
 Apache verwijst `/home` automatisch door naar `/home/` en serveert `index.html`.
 
@@ -20,7 +22,7 @@ zijn eigen startpagina opent, blijft dat bestaande gedrag behouden.
 ## Plaatsen op Combell
 
 1. Upload de volledige map `home/` naar `/www/home/`, inclusief `.htaccess` en `assets/`.
-2. Open `https://www.aertsactionbike.cc/home/` en controleer de navigatie.
+2. Open `https://aertsactionbike.cc/home/` en controleer de navigatie.
 3. Upload voor de teruglinks en de publieke teamlink ook de gewijzigde bestanden:
    - `/www/index.html`
    - `/www/huur-module/app/views.php`

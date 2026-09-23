@@ -1,0 +1,25 @@
+# Lokale editor- en systeembestanden
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+*.bak
+*.tmp
+.htaccess.local-backup
+
+# Afhankelijkheden worden uit de lockbestanden opgebouwd
+vendor/
+node_modules/
+
+# Private omgevingsinstellingen; voorbeelden blijven deel van de broncode
+.env
+.env.*
+!.env.example
+
+# Databases en bijbehorende journalbestanden zijn runtimegegevens
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*

@@ -1,6 +1,7 @@
 .env
 /vendor/
 /storage/database.sqlite
+/storage/*.json
 /storage/private/ids/*
 /storage/private/signatures/*
 /storage/private/contracts/*

@@ -1,5 +1,52 @@
 # Lease Import Manager
 
+[Algemene README](../README.md) · [Hosting en updates](../docs/deployment.md)
+
+Interne tool voor het importeren van leasecontracten, klant- en fietsgegevens,
+onderhoudsbudgetten, archivering en opvolging via een dossierlogboek.
+De webapp staat onder `/lease/public/` en gebruikt MySQL/MariaDB.
+
+- [Eerste installatie](#eerste-installatie)
+- [Wekelijkse dinsdagmail](#wekelijkse-dinsdagmail)
+- [Toegang instellen of bijwerken](#beveiligingsupdate-installeren)
+- [Beveiligingstests](#gerichte-beveiligingstests)
+
+## Eerste installatie
+
+Gebruik PHP 8.2 of hoger (64-bit) voor de volledige dashboardrepository en installeer
+vanuit de hoofdmap de lease-afhankelijkheden:
+
+```sh
+composer install --working-dir=lease
+```
+
+Maak een lege lokale MySQL/MariaDB-database aan en importeer
+[`database/schema.sql`](database/schema.sql). Het voorbeeldschema gebruikt
+`lease_import_manager` met `CREATE DATABASE` en `USE`; pas die naam en instructies
+aan als je hosting alleen een vooraf aangemaakte database toestaat. Gebruik deze
+eerste-installatiestap niet als standaard update van een bestaande databank.
+
+Kopieer [`config/config.example.php`](config/config.example.php) naar
+`config/config.local.php` voor lokale gegevens en configureer op de hosting
+afzonderlijk `config/config.production.php`. Maak alleen ontbrekende bestanden aan.
+
+De bestaande loader kiest lokale instellingen bij exact `localhost` of
+`127.0.0.1` als HTTP-host. Een hostnaam met een afwijkende poort, zoals
+`localhost:8080`, kiest momenteel de productieconfiguratie. Gebruik voor deze
+module een lokale Apache-site op de standaardpoort. De geplande mailtaak kiest
+altijd expliciet de productieconfiguratie, tenzij `AAB_LEASE_DB_FILE` is ingesteld.
+
+Genereer vervolgens de private aanmeldconfiguratie:
+
+```sh
+php lease/scripts/configure-auth.php
+```
+
+Bewaar de getoonde toegangssleutel en open `/lease/public/` op de lokale site.
+Op productie moeten de private configuratie en de meegeleverde afscherming
+aanwezig zijn voordat je de app gebruikt. Zie hieronder voor installatie op een
+bestaande omgeving en optionele mailverzending.
+
 ## Wekelijkse dinsdagmail
 
 De lease-module kan iedere dinsdag een **intern** overzicht sturen van alle
