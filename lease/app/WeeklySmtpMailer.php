@@ -23,7 +23,6 @@ final class WeeklySmtpMailer
         $mail->isSMTP();
         $mail->SMTPDebug = 0;
         $mail->Timeout = 30;
-        $mail->Timelimit = 60;
         $mail->Host = $smtp['host'];
         $mail->Port = $smtp['port'];
         $mail->SMTPAuth = $smtp['username'] !== '';

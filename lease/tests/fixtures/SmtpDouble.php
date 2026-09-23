@@ -2,7 +2,6 @@
 namespace PHPMailer\PHPMailer;
 
 // Loaded only by the CLI regression suite, never by application code.
-#[\AllowDynamicProperties]
 final class PHPMailer
 {
     public const ENCRYPTION_STARTTLS = 'tls';
@@ -11,6 +10,9 @@ final class PHPMailer
     public array $addresses = [];
     public bool $smtp = false;
     public string $from = '';
+    public $SMTPDebug, $Timeout, $Host, $Port, $SMTPAuth, $Username, $Password, $SMTPSecure;
+    public $CharSet, $Subject, $Body, $AltBody;
+    public function __set(string $name, $value): void { throw new \LogicException('Unknown PHPMailer property: ' . $name); }
     public function __construct(bool $exceptions) { self::$last = $this; }
     public function isSMTP(): void { $this->smtp = true; }
     public function setFrom(string $address, string $name): void { $this->from = $address; }
