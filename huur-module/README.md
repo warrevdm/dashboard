@@ -11,6 +11,7 @@ PHP 8.2-module voor interne fietsverhuur, planning, betalingen, contractopmaak e
 - Fietsen in onderhoud of met status inactief kunnen niet worden ingepland.
 - Live beschikbaarheidscontrole bij het kiezen van de huurperiode.
 - Eén verhuurdossier kan meerdere fietsen tegelijk bevatten.
+- Bestaande dossiers bewerken: start- en einddatum met uren, type Huur/Test/Vervang, klantgegevens, status en notities.
 - Eén gezamenlijk contract vermeldt alle fietsen, framenummers, maten en dagprijzen.
 - Betalingslog met bedrag, Bancontact of cash, medewerker en tijdstip.
 - Automatische status: nog niet betaald, deels betaald of volledig afgerekend.
@@ -137,6 +138,59 @@ Oude links via `index.php?route=...` worden automatisch doorgestuurd.
 6. De module maakt één gezamenlijk contract voor alle geselecteerde fietsen.
 
 De controle gebeurt zowel in de browser als opnieuw op de server bij het opslaan.
+
+## Een reservatie aanpassen
+
+Open een reservatie vanuit **Planning** en kies **Dossier aanpassen**. Je kunt
+startdatum, startuur, einddatum, einduur, **Huur / Test / Vervang**, klantnaam,
+telefoon, e-mail, adres, status en interne notities wijzigen. Klik daarna op
+**Wijzigingen opslaan**. Ingevoerde gegevens blijven bij een validatiefout staan.
+
+- Alle gekoppelde fietsen blijven behouden; iedere fiets wordt op overlap met
+  andere reservaties gecontroleerd. Een vervangdossier met één fiets behoudt
+  ook de mogelijkheid om die fiets te wisselen.
+- De afgesproken prijs en betalingen worden niet automatisch herberekend bij
+  een wijziging van periode of type. Gebruik daarvoor de bestaande prijs- of
+  vervangkostbewerking. Testdossiers met een bedrag blijven in het kasboek staan.
+- Wijzigingen aan klantgegevens, periode, type of fiets maken een bestaand
+  conceptcontract en de oude ondertekenlink ongeldig. Ondertekende contracten,
+  handtekeningen en PDF's blijven met hun oorspronkelijke afspraken bewaard.
+- Bij een gewijzigde klantnaam vervalt de eerdere eID-bevestiging. Klantgegevens
+  die uitzonderlijk door meerdere dossiers gedeeld worden, zijn hier geblokkeerd
+  om wijzigingen aan andere dossiers te voorkomen.
+- Boekhouding behoudt alleen leesrechten. Geannuleerde dossiers zijn niet
+  bewerkbaar. Een dossier dat ondertussen gewijzigd is, moet eerst worden herladen.
+- De oude link **Einddatum aanpassen** verwijst naar hetzelfde dossierformulier.
+
+### Deze update installeren
+
+Maak eerst een consistente back-up van de productiegegevens. Upload deze
+gewijzigde programmabestanden samen, met behoud van hun mappenstructuur:
+
+```text
+huur-module/.htaccess
+huur-module/app/database.php
+huur-module/app/reservation_edit.php
+huur-module/app/views.php
+huur-module/bin/setup.php
+huur-module/database/schema.sql
+huur-module/public/reservation.php
+huur-module/public/reservation-end-date.php
+huur-module/public/planning.php
+huur-module/public/cashbook.php
+huur-module/public/assets/planning-status.css
+huur-module/public/assets/reservation-end-date.js
+```
+
+De uitbreiding voor **Test** wordt bij de eerste databaseverbinding automatisch
+op de bestaande SQLite-database toegepast. Bestaande dossiernummers, gekoppelde
+fietsen, betalingen en contracten blijven behouden. Daarvoor is schrijfrecht op de
+database én de bijbehorende map nodig. Vervang de online database, `.env` en
+private bestanden niet door lokale exemplaren. De map `tests/` hoeft niet naar
+de hosting.
+
+De [regressietests voor dossierbewerking](tests/README.md) gebruiken uitsluitend
+synthetische gegevens en controleren ook de migratie van bestaande databases.
 
 ## Betalingslog
 

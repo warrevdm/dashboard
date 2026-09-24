@@ -131,6 +131,29 @@ function bike_usage_type_label(string $usageType): string
     };
 }
 
+function rental_kind_label(string $kind): string
+{
+    return match ($kind) {
+        'test' => 'Test',
+        'replacement' => 'Vervang',
+        default => 'Huur',
+    };
+}
+
+function rental_kind_icon(string $kind): string
+{
+    return match ($kind) {
+        'test' => 'T',
+        'replacement' => '↺',
+        default => '€',
+    };
+}
+
+function cashbook_kind_label(string $kind): string
+{
+    return $kind === 'replacement' ? 'Vervangkost' : rental_kind_label($kind);
+}
+
 function payment_method_label(string $method): string
 {
     return match ($method) {
