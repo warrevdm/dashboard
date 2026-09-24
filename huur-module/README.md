@@ -11,6 +11,7 @@ PHP 8.2-module voor interne fietsverhuur, planning, betalingen, contractopmaak e
 - Fietsen in onderhoud of met status inactief kunnen niet worden ingepland.
 - Live beschikbaarheidscontrole bij het kiezen van de huurperiode.
 - Eén verhuurdossier kan meerdere fietsen tegelijk bevatten.
+- Type Huur/Test/Vervang kiezen bij zowel Nieuwe verhuur als Snelle vervangfiets.
 - Bestaande dossiers bewerken: start- en einddatum met uren, type Huur/Test/Vervang, klantgegevens, status en notities.
 - Eén gezamenlijk contract vermeldt alle fietsen, framenummers, maten en dagprijzen.
 - Betalingslog met bedrag, Bancontact of cash, medewerker en tijdstip.
@@ -139,6 +140,24 @@ Oude links via `index.php?route=...` worden automatisch doorgestuurd.
 
 De controle gebeurt zowel in de browser als opnieuw op de server bij het opslaan.
 
+## Type kiezen bij aanmaak
+
+Zowel **Nieuwe verhuur** als **Snelle vervangfiets** heeft het veld
+**Type reservatie** met **Huur**, **Test** en **Vervang**. Nieuwe verhuur begint
+standaard op Huur; de snelle registratie op Vervang. De keuze wordt opgeslagen
+op het dossier en verschijnt in de planning en het kasboek.
+
+Bij Nieuwe verhuur blijft de bestaande automatische of handmatige prijs gelden.
+Het gekozen type wijzigt het bedrag niet automatisch: controleer de totaalprijs
+en vul €0 in voor een gratis test of vervangfiets. Een betaling kan niet hoger
+zijn dan de totaalprijs, ook niet bij €0. Na opslaan opent Huur het gezamenlijke
+contract; Test en Vervang openen het dossier.
+
+Een snelle registratie begint voor elk type op €0. Bij Huur en Test opent na
+opslaan het dossier, waar je een eventuele prijs, e-mailadres en overige
+klantgegevens kunt aanvullen en zo nodig een contract opmaken. Vervang keert
+zoals voordien terug naar de planning. De bestaande toegangsrechten blijven gelden.
+
 ## Een reservatie aanpassen
 
 Open een reservatie vanuit **Planning** en kies **Dossier aanpassen**. Je kunt
@@ -176,6 +195,8 @@ huur-module/bin/setup.php
 huur-module/database/schema.sql
 huur-module/public/reservation.php
 huur-module/public/reservation-end-date.php
+huur-module/public/reservation-new.php
+huur-module/public/quick-replacement.php
 huur-module/public/planning.php
 huur-module/public/cashbook.php
 huur-module/public/assets/planning-status.css
