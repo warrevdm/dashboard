@@ -272,6 +272,49 @@ Voor echte verzending configureer je het passende mailtransport en de bijbehoren
 SMTP- of Microsoft Graph-gegevens in `.env`. Plaats wachtwoorden en sleutels nooit
 in GitHub. Test mailinstellingen uitsluitend met een daarvoor bestemd adres.
 
+## Hosting en OPcache controleren
+
+Upload voor de beveiligde meetpagina deze drie bestanden met hun mappenstructuur:
+
+```text
+huur-module/app/diagnostics.php
+huur-module/public/system-check.php
+huur-module/system-check.php
+```
+
+Meld je aan als beheerder en open `/huur-module/system-check.php` op de hosting.
+Bij een installatie waarbij `public/` de webroot is, open je daar
+`system-check.php`. De pagina toont de PHP-versie, opstarttijd inclusief het
+openen van de sessie, geheugen van dit verzoek, OPcache-instelling en beschikbare
+OPcache-status. **Download meetrapport (JSON)** maakt een nieuwe meting die je
+kunt delen voor analyse. Herhaal bij klachten en op een rustig moment om te
+kunnen vergelijken. Er wordt geen historie opgeslagen.
+
+De controle leest uitsluitend metingen: er is geen databaseverbinding,
+OPcache-reset of wijziging van hostinginstellingen. Alleen beheerders krijgen
+toegang. De PHP-antwoorden krijgen `Cache-Control: no-store, private`, ook bij
+een geweigerde toegang of verwijzing naar de aanmeldpagina. De JSON bevat geen wachtwoorden,
+klantgegevens, sessiegegevens of scriptpaden.
+
+Interpretatie:
+
+- **Status onbekend** betekent dat de host de status niet beschikbaar maakt;
+  het bewijst niet dat OPcache uitgeschakeld is. De instelling `opcache.enable`
+  wordt afzonderlijk getoond.
+- OPcache-tellers kunnen gedeeld worden met andere sites in dezelfde PHP-pool
+  en zijn cumulatief. Een volle cache, weinig vrije ruimte of oplopende herstarts
+  zijn aanleiding om de capaciteit met de hostingprovider te controleren.
+- Load averages betreffen de host of container en zijn geen CPU-percentages van
+  dit hostingaccount. Zonder servercapaciteit kan je geen overbelasting afleiden.
+- De PHP-tijden meten deze controle tot het meetmoment. Netwerktijd en wachttijd
+  vóór een PHP-worker beschikbaar komt zitten daar niet in. Het geheugen betreft
+  alleen dit PHP-verzoek.
+
+Voor CPU/RAM-verbruik van je account, I/O-limieten, afremming en PHP-FPM-workers
+of wachtrijen zijn statistieken uit het hostingpaneel of van de provider nodig.
+Noteer bij screenshots steeds het tijdstip waarop de site traag was. Deze
+meetpagina vervangt die providergegevens niet.
+
 ## Controle na update
 
 Voer deze gerichte controles uit vanuit `huur-module/`:
