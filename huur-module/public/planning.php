@@ -21,8 +21,6 @@ $days = max(7, min(28, (int) ($_GET['days'] ?? 14)));
 $start = DateTimeImmutable::createFromFormat('!Y-m-d', (string) ($_GET['start'] ?? date('Y-m-d'))) ?: new DateTimeImmutable('today');
 $end = $start->modify("+{$days} days");
 $allBikes = all_bikes(true);
-require_once __DIR__ . '/../app/game_access.php';
-$showGameButton = can_open_secret_game();
 $selectedCategory = trim((string) ($_GET['category'] ?? ''));
 $focus = (string) ($_GET['focus'] ?? '');
 $focus = in_array($focus, ['pickups', 'returns', 'active'], true) ? $focus : '';
@@ -167,9 +165,6 @@ echo $planningHeader;
             <a href="planning.php?days=7<?= e($categoryParam) ?>">7 dagen</a>
             <a href="planning.php?days=14<?= e($categoryParam) ?>">14 dagen</a>
             <a href="planning.php?days=28<?= e($categoryParam) ?>">28 dagen</a>
-            <?php if ($showGameButton): ?>
-                <a class="button button-secondary" href="game.php">After Hours 🎮</a>
-            <?php endif; ?>
             <a class="button" href="reservation-new.php">+ Nieuwe verhuur</a>
         </div>
     </div>

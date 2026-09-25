@@ -36,8 +36,8 @@ function check(value,label){assert.ok(value,label);checks++;}
  check((await request(staff)).httpStatusCode===403,'Unselected staff cannot enter');
  check((await request(finance)).httpStatusCode===302,'Existing finance boundary retained');
  check((await request(berten)).httpStatusCode===200,'Selected staff can enter');
- check((await planning(warre)).text.includes('href="game.php"'),'Warre sees planning button');
- check((await planning(berten)).text.includes('href="game.php"'),'Berten sees planning button');
+ check(!(await planning(warre)).text.includes('href="game.php"'),'Game stays hidden on planning for Warre');
+ check(!(await planning(berten)).text.includes('href="game.php"'),'Game stays hidden on planning for Berten');
  check(!(await planning(other)).text.includes('href="game.php"'),'Other admin does not see game button');
  check(!(await planning(staff)).text.includes('href="game.php"'),'Other staff does not see game button');
 

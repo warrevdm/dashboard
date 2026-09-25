@@ -278,9 +278,9 @@ in GitHub. Test mailinstellingen uitsluitend met een daarvoor bestemd adres.
 Berten, met dagelijks Galgje, Snake, Tetris of Woordzoeker. De spelcode wordt niet
 op gewone verhuurpagina's geladen. Zie [installatie en spelregels](GAME-README.md)
 voor de uploadbestanden, de eenmalige accountkoppeling en private spelopslag.
-De planning toont alleen voor de twee gekoppelde actieve accounts een knop
-**After Hours 🎮**. Voor deze knop upload je `app/game_access.php` en
-`public/planning.php` samen.
+De game blijft verborgen: er staat geen knop op de planning. Open
+`/huur-module/game.php` rechtstreeks of via een persoonlijke bladwijzer.
+Upload `public/planning.php` om een eerder geplaatste spelknop te verwijderen.
 
 ## Planning sneller laden
 
