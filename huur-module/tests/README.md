@@ -10,6 +10,7 @@ node --experimental-wasm-jspi huur-module/tests/reservation-edit.cjs
 node --experimental-wasm-jspi huur-module/tests/reservation-create.cjs
 node --experimental-wasm-jspi huur-module/tests/diagnostics.cjs
 node --experimental-wasm-jspi huur-module/tests/planning-performance.cjs
+node --experimental-wasm-jspi huur-module/tests/secret-game.cjs
 ```
 
 De controles omvatten dossierwijzigingen, beschikbaarheid van meerdere fietsen, datums en zomertijd, behoud van betalingen en ondertekende contracten, intrekken van conceptcontracten, gelijktijdige wijzigingen, autorisatie, CSRF, foutmeldingen en rollback bij een auditfout. Oude SQLite-schema's worden getest op behoud van rijen, relaties, extra kolommen, indexen, triggers, views en de ID-teller.
@@ -25,3 +26,9 @@ teruggebrachte en geannuleerde dossiers, indexgebruik, toegangscontrole,
 sessieafsluiting, behouden afmeldtokens en meldingen, beperkte planningassets
 en ongewijzigde assets op andere pagina's. De synthetische vergelijking met
 10.000 historische betalingen is geen voorspelling van de live laadtijd.
+
+De geheime-speltests gebruiken uitsluitend synthetische accounts en een aparte
+speltestdatabase. Ze controleren accountkoppeling, CSRF, eigenaarschap van pogingen,
+de daglimiet, verlopen rondes, scoreberekening, afgeschermde Galgje-antwoorden,
+dagzeges en overeenstemming tussen de PHP- en JavaScript-versies van Snake en
+Tetris, inclusief het vrijspelen van rijen.

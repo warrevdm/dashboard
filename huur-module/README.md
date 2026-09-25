@@ -272,6 +272,13 @@ Voor echte verzending configureer je het passende mailtransport en de bijbehoren
 SMTP- of Microsoft Graph-gegevens in `.env`. Plaats wachtwoorden en sleutels nooit
 in GitHub. Test mailinstellingen uitsluitend met een daarvoor bestemd adres.
 
+## Verborgen dagelijkse competitie
+
+**After Hours** is een afzonderlijke spelpagina voor de accounts van Warre en
+Berten, met dagelijks Galgje, Snake, Tetris of Woordzoeker. De spelcode wordt niet
+op gewone verhuurpagina's geladen. Zie [installatie en spelregels](GAME-README.md)
+voor de vijf uploadbestanden, de eenmalige accountkoppeling en private spelopslag.
+
 ## Planning sneller laden
 
 De planning laadt alleen de drie benodigde stylesheets en het script voor de
