@@ -272,6 +272,36 @@ Voor echte verzending configureer je het passende mailtransport en de bijbehoren
 SMTP- of Microsoft Graph-gegevens in `.env`. Plaats wachtwoorden en sleutels nooit
 in GitHub. Test mailinstellingen uitsluitend met een daarvoor bestemd adres.
 
+## Planning sneller laden
+
+De planning laadt alleen de drie benodigde stylesheets en het script voor de
+klantnaam bij aanwijzen, in plaats van negen stylesheets en acht scripts.
+Betalingen worden via de bestaande index alleen voor de gevonden reservaties
+opgeteld. De planning bewaart het afmeldtoken en meldingen en geeft daarna de
+sessie vrij vóór het databasewerk. Fietsfotoverzoeken geven de sessie direct na
+de toegangscontrole vrij, zodat het opzoeken en versturen van foto's geen
+volgende navigatie binnen die sessie blokkeert.
+
+Upload voor deze verbetering de volgende bestanden samen:
+
+```text
+huur-module/app/repositories.php
+huur-module/app/views.php
+huur-module/public/bike-photo.php
+huur-module/public/planning.php
+```
+
+Er is geen databasemigratie nodig. Upload geen lokale database of `.env`.
+De planning behoudt actuele gegevens en wordt niet gecachet. Andere pagina's
+behouden hun bestaande scripts en stylesheets.
+
+Voor verdere diagnose bevat het planningdocument een `Server-Timing`-header:
+`bootstrap` meet het opstarten inclusief sessiewachttijd, `data` het ophalen en
+voorbereiden van gegevens. Deze waarden bevatten geen PHP-workerwachtrij,
+netwerkvertraging of daaropvolgende HTML-rendering. In de browser zijn ze bij
+Network → planning.php → Headers te bekijken. Minder databasewerk en downloads
+zijn geen garantie tegen tijdelijke hosting- of netwerkvertraging.
+
 ## Hosting en OPcache controleren
 
 Upload voor de beveiligde meetpagina deze drie bestanden met hun mappenstructuur:

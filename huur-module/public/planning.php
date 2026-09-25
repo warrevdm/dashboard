@@ -2,8 +2,20 @@
 
 declare(strict_types=1);
 
+$planningStartedAt = microtime(true);
 require_once __DIR__ . '/../app/bootstrap.php';
 require_auth();
+$planningBootstrapMs = (microtime(true) - $planningStartedAt) * 1000;
+
+// Save the logout token and consume flashes before releasing the session lock.
+ob_start();
+render_header('Verhuurplanning', true, 'planning');
+$planningHeader = (string) ob_get_clean();
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+header('Cache-Control: no-store, private');
+$planningDataStartedAt = microtime(true);
 
 $days = max(7, min(28, (int) ($_GET['days'] ?? 14)));
 $start = DateTimeImmutable::createFromFormat('!Y-m-d', (string) ($_GET['start'] ?? date('Y-m-d'))) ?: new DateTimeImmutable('today');
@@ -114,7 +126,10 @@ $focusLabels = [
     'active' => 'Verhuren onderweg',
 ];
 
-render_header('Verhuurplanning');
+// These phases exclude network time and the PHP-worker queue.
+header('Server-Timing: bootstrap;dur=' . number_format($planningBootstrapMs, 3, '.', '')
+    . ', data;dur=' . number_format((microtime(true) - $planningDataStartedAt) * 1000, 3, '.', ''));
+echo $planningHeader;
 ?>
 <section class="grid planning-stats" aria-label="Snelfilters planning">
     <a class="card col-4 planning-stat-card <?= $focus === 'pickups' ? 'is-active' : '' ?>" href="planning.php?focus=pickups<?= e($categoryParam) ?>">
@@ -294,4 +309,4 @@ render_header('Verhuurplanning');
         </table></div>
     <?php endif; ?>
 </section>
-<?php render_footer();
+<?php render_footer('planning');

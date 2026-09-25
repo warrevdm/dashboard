@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-function render_header(string $title, bool $showNav = true): void
+function render_header(string $title, bool $showNav = true, string $assetProfile = 'default'): void
 {
     $appName = env('APP_NAME', 'Aerts Action Bike Verhuur');
     $user = current_user();
@@ -26,13 +26,17 @@ function render_header(string $title, bool $showNav = true): void
         <link rel="icon" href="assets/aerts-action-bike-logo.svg" type="image/svg+xml">
         <link rel="stylesheet" href="assets/styles.css?v=<?= e($stylesVersion) ?>">
         <link rel="stylesheet" href="assets/planning-status.css?v=<?= e($planningStatusVersion) ?>">
+        <?php if ($assetProfile !== 'planning'): ?>
         <link rel="stylesheet" href="assets/contract.css?v=<?= e($contractVersion) ?>">
+        <?php endif; ?>
         <link rel="stylesheet" href="assets/branding.css?v=<?= e($brandingVersion) ?>">
+        <?php if ($assetProfile !== 'planning'): ?>
         <link rel="stylesheet" href="assets/eid-bridge.css?v=<?= e($eidBridgeStyleVersion) ?>">
         <link rel="stylesheet" href="assets/reservation-new.css?v=<?= e($reservationNewStyleVersion) ?>">
         <link rel="stylesheet" href="assets/quick-replacement.css?v=<?= e($quickReplacementStyleVersion) ?>">
         <link rel="stylesheet" href="assets/bikes-layout.css?v=<?= e($bikesLayoutStyleVersion) ?>">
         <link rel="stylesheet" href="assets/cashbook.css?v=<?= e($cashbookStyleVersion) ?>">
+        <?php endif; ?>
     </head>
     <body>
     <?php if ($showNav && $user): ?>
@@ -73,7 +77,7 @@ function render_header(string $title, bool $showNav = true): void
     <?php
 }
 
-function render_footer(): void
+function render_footer(string $assetProfile = 'default'): void
 {
     $appVersion = is_file(ROOT_PATH . '/public/assets/app.js') ? (string) filemtime(ROOT_PATH . '/public/assets/app.js') : '1';
     $eidBridgeVersion = is_file(ROOT_PATH . '/public/assets/eid-bridge.js') ? (string) filemtime(ROOT_PATH . '/public/assets/eid-bridge.js') : '1';
@@ -85,6 +89,7 @@ function render_footer(): void
     $planningHoverVersion = is_file(ROOT_PATH . '/public/assets/planning-hover.js') ? (string) filemtime(ROOT_PATH . '/public/assets/planning-hover.js') : '1';
     ?>
     </main>
+    <?php if ($assetProfile !== 'planning'): ?>
     <script src="assets/app.js?v=<?= e($appVersion) ?>" defer></script>
     <script src="assets/eid-bridge.js?v=<?= e($eidBridgeVersion) ?>" defer></script>
     <script src="assets/bike-optimize.js?v=<?= e($bikeOptimizeVersion) ?>" defer></script>
@@ -92,6 +97,7 @@ function render_footer(): void
     <script src="assets/reservation-new.js?v=<?= e($reservationNewVersion) ?>" defer></script>
     <script src="assets/quick-replacement.js?v=<?= e($quickReplacementVersion) ?>" defer></script>
     <script src="assets/reservation-end-date.js?v=<?= e($reservationEndDateVersion) ?>" defer></script>
+    <?php endif; ?>
     <script src="assets/planning-hover.js?v=<?= e($planningHoverVersion) ?>" defer></script>
     </body>
     </html>

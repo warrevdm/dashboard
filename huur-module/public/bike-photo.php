@@ -5,6 +5,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/../app/bootstrap.php';
 require_auth();
 
+// Authentication is complete. Image lookup and streaming must not block navigation.
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+
 $id = (int) ($_GET['id'] ?? 0);
 $bike = find_bike($id);
 if (!$bike) {

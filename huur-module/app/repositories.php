@@ -57,18 +57,13 @@ function reservations_for_range(DateTimeImmutable $start, DateTimeImmutable $end
         "SELECT r.*, rb.bike_id, b.name AS bike_name, b.code AS bike_code,
                 b.status AS bike_status, c.name AS customer_name, d.id AS document_id,
                 rc.signed_at AS contract_signed_at,
-                COALESCE(payments.paid_amount, 0) AS paid_amount
+                COALESCE((SELECT SUM(p.amount) FROM payment_logs p WHERE p.reservation_id = r.id), 0) AS paid_amount
          FROM reservations r
          JOIN reservation_bikes rb ON rb.reservation_id = r.id
          JOIN bikes b ON b.id = rb.bike_id
          JOIN customers c ON c.id = r.customer_id
          LEFT JOIN identity_documents d ON d.id = r.identity_document_id AND d.deleted_at IS NULL
          LEFT JOIN rental_contracts rc ON rc.reservation_id = r.id
-         LEFT JOIN (
-             SELECT reservation_id, SUM(amount) AS paid_amount
-             FROM payment_logs
-             GROUP BY reservation_id
-         ) payments ON payments.reservation_id = r.id
          WHERE r.start_at < :range_end
            AND r.end_at > :range_start
            AND r.status != 'cancelled'
