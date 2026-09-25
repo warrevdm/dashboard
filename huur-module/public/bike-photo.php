@@ -29,6 +29,16 @@ if (!is_file($path) || !is_readable($path)) {
     exit('Afbeelding niet gevonden.');
 }
 
+// Generate only when the image itself is requested, never during page rendering.
+$size = bike_image_normalize_size((int) ($_GET['size'] ?? 480));
+$variant = bike_generate_web_variant($bike, $size);
+$imageMode = 'original';
+if ($variant !== null && is_file($variant['cache_path'])) {
+    $path = $variant['cache_path'];
+    $storedName = $variant['filename'];
+    $imageMode = 'webp';
+}
+
 $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
 $mimeType = '';
 
@@ -83,5 +93,5 @@ header('Content-Disposition: inline; filename="' . rawurlencode($storedName) . '
 header('Cache-Control: private, max-age=86400');
 header('ETag: ' . $etag);
 header('X-Content-Type-Options: nosniff');
-header('X-Bike-Image-Mode: original');
+header('X-Bike-Image-Mode: ' . $imageMode);
 readfile($path);
