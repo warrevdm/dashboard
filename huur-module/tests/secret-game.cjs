@@ -10,6 +10,7 @@ function check(value,label){assert.ok(value,label);checks++;}
  php=new PHP(await loadNodeRuntime('8.3',{fileLockManager:new FileLockManagerInMemory(),emscriptenOptions:{processId:process.pid}}));
  for(const d of ['app','public','storage','sessions'])php.mkdirTree('/game-test/'+d);
  for(const f of fs.readdirSync(root+'/app').filter(f=>f.endsWith('.php')))php.writeFile('/game-test/app/'+f,fs.readFileSync(root+'/app/'+f));
+ php.writeFile('/game-test/public/planning.php',fs.readFileSync(root+'/public/planning.php'));
  php.writeFile('/game-test/public/game.php',fs.readFileSync(root+'/public/game.php'));
  php.writeFile('/game-test/game.php',fs.readFileSync(root+'/game.php'));
  php.writeFile('/game-test/schema.sql',fs.readFileSync(root+'/database/schema.sql'));
@@ -20,6 +21,9 @@ function check(value,label){assert.ok(value,label);checks++;}
  await run(`require '/game-test/app/bootstrap.php';db()->exec(file_get_contents('/game-test/schema.sql'));db()->exec("INSERT INTO users(id,name,email,password_hash,role) VALUES(1,'Warre','warre@example.test','fixture','admin'),(2,'Berten','berten@example.test','fixture','staff'),(3,'Other admin','admin@example.test','fixture','admin'),(4,'Staff','staff@example.test','fixture','staff'),(5,'Finance','finance@example.test','fixture','finance');");`);
  async function actor(id){const r=await run(`require '/game-test/app/bootstrap.php';$_SESSION['user']=db()->query('SELECT id,name,email,role FROM users WHERE id=${id}')->fetch();echo csrf_token();`);return{cookie:r.headers['set-cookie'][0].split(';')[0],token:r.text};}
  const warre=await actor(1),berten=await actor(2),other=await actor(3),staff=await actor(4),finance=await actor(5);
+ async function planning(actor){return run("require '/game-test/public/planning.php';",{method:'GET',relativeUri:'/huur-module/planning.php',$_SERVER:{SCRIPT_NAME:'/huur-module/planning.php'},headers:{Cookie:actor.cookie}});}
+ check(!(await planning(warre)).text.includes('href="game.php"'),'No game button before game storage exists');
+ check(!php.fileExists('/game-test/storage/private/secret-game.sqlite'),'Navigation check does not create game storage');
  check((await request()).httpStatusCode===302,'Anonymous login required');
  check((await request(berten)).httpStatusCode===403,'Unconfigured game closed to staff');
  const setup=await request(warre);check(setup.httpStatusCode===200&&setup.text.includes('setup-form'),'Admin gets account picker');
@@ -32,8 +36,14 @@ function check(value,label){assert.ok(value,label);checks++;}
  check((await request(staff)).httpStatusCode===403,'Unselected staff cannot enter');
  check((await request(finance)).httpStatusCode===302,'Existing finance boundary retained');
  check((await request(berten)).httpStatusCode===200,'Selected staff can enter');
+ check((await planning(warre)).text.includes('href="game.php"'),'Warre sees planning button');
+ check((await planning(berten)).text.includes('href="game.php"'),'Berten sees planning button');
+ check(!(await planning(other)).text.includes('href="game.php"'),'Other admin does not see game button');
+ check(!(await planning(staff)).text.includes('href="game.php"'),'Other staff does not see game button');
+
  await run("require '/game-test/app/bootstrap.php';db()->exec('UPDATE users SET active=0 WHERE id=2');");
  check((await request(berten)).httpStatusCode===403,'Deactivated account with stale session rejected');
+ check(!(await planning(berten)).text.includes('href="game.php"'),'Deactivated selected user does not see game button');
  await run("require '/game-test/app/bootstrap.php';db()->exec('UPDATE users SET active=1 WHERE id=2');");
  const a=await post(warre,'start'),b=await post(berten,'start');
  check(a.status===200&&b.status===200&&a.data.seed===b.data.seed,'Same daily challenge for both players');

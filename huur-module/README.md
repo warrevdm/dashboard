@@ -277,7 +277,10 @@ in GitHub. Test mailinstellingen uitsluitend met een daarvoor bestemd adres.
 **After Hours** is een afzonderlijke spelpagina voor de accounts van Warre en
 Berten, met dagelijks Galgje, Snake, Tetris of Woordzoeker. De spelcode wordt niet
 op gewone verhuurpagina's geladen. Zie [installatie en spelregels](GAME-README.md)
-voor de vijf uploadbestanden, de eenmalige accountkoppeling en private spelopslag.
+voor de uploadbestanden, de eenmalige accountkoppeling en private spelopslag.
+De planning toont alleen voor de twee gekoppelde actieve accounts een knop
+**After Hours 🎮**. Voor deze knop upload je `app/game_access.php` en
+`public/planning.php` samen.
 
 ## Planning sneller laden
 

@@ -1,13 +1,18 @@
 # After Hours — Warre × Berten
 
-Een verborgen dagelijkse minigame binnen de verhuurmodule. Er is geen nieuwe
-navigatielink en er worden geen spelbestanden op de planning geladen.
+Een dagelijkse minigame binnen de verhuurmodule. De planning toont alleen voor
+de twee gekoppelde, actieve accounts de knop **After Hours 🎮**, naast Nieuwe
+verhuur. Er worden geen spelscripts op de planning geladen. Een lichte alleen-lezen
+controle leest de accountkoppeling; ontbrekende of bezette spelopslag verbergt de
+knop zonder op die opslag te wachten.
 
 ## Installeren
 
 Upload samen, met behoud van de mappenstructuur:
 
 ```text
+huur-module/app/game_access.php
+huur-module/public/planning.php
 huur-module/game.php
 huur-module/app/secret_game.php
 huur-module/public/game.php
@@ -20,7 +25,9 @@ Meld je met je bestaande beheerdersaccount aan bij de verhuurmodule. Open daarna
 Alleen actieve admin- of staffaccounts kunnen gekozen worden, en het moeten twee
 verschillende accounts zijn. Na de koppeling zijn uitsluitend die twee accounts
 toegelaten, ook andere beheerders krijgen dan geen toegang. Maak eventueel een
-persoonlijke bladwijzer naar de pagina. Het spel vraagt geen extra wachtwoord.
+persoonlijke bladwijzer naar de pagina of gebruik daarna de knop op de planning.
+Vóór de eenmalige accountkoppeling is de knop voor niemand zichtbaar. Het spel
+vraagt geen extra wachtwoord.
 
 De koppeling is bewust niet via de spelinterface wijzigbaar. Een aanpassing aan
 de koppeling vereist onderhoud van de private spelopslag door de sitebeheerder.
