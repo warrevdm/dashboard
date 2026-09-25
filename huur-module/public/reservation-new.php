@@ -6,6 +6,8 @@ require_once __DIR__ . '/../app/bootstrap.php';
 require_auth();
 
 $method = (string) ($_SERVER['REQUEST_METHOD'] ?? 'GET');
+$rentalKindInput = $_POST['rental_kind'] ?? 'rental';
+$rentalKind = is_string($rentalKindInput) ? $rentalKindInput : '';
 $startDate = (string) ($_GET['start_date'] ?? $_POST['start_date'] ?? date('Y-m-d'));
 $startTime = (string) ($_POST['start_time'] ?? '09:00');
 $endDate = (string) ($_POST['end_date'] ?? (new DateTimeImmutable($startDate))->modify('+1 day')->format('Y-m-d'));
@@ -17,6 +19,11 @@ $selectedBikeIds = array_values(array_unique(array_filter(array_map(
 
 if ($method === 'POST') {
     verify_csrf();
+
+    if (!in_array($rentalKind, ['rental', 'test', 'replacement'], true)) {
+        flash('error', 'Kies een geldig type reservatie: Huur, Test of Vervang.');
+        redirect('reservation-new.php');
+    }
 
     $startAt = parse_datetime($startDate, $startTime);
     $endAt = parse_datetime($endDate, $endTime);
@@ -79,7 +86,7 @@ if ($method === 'POST') {
         flash('error', 'Vul een geldig betaald bedrag in.');
         redirect('reservation-new.php');
     }
-    if ($initialPaymentAmount > $totalPrice && $totalPrice > 0) {
+    if ($initialPaymentMethod !== '' && $initialPaymentAmount - $totalPrice > 0.009) {
         flash('error', 'Het betaalde bedrag kan niet hoger zijn dan de totaalprijs.');
         redirect('reservation-new.php');
     }
@@ -115,7 +122,7 @@ if ($method === 'POST') {
             ':start' => $startAt->format('Y-m-d H:i:s'),
             ':end' => $endAt->format('Y-m-d H:i:s'),
             ':status' => ($_POST['status'] ?? 'reserved') === 'confirmed' ? 'confirmed' : 'reserved',
-            ':rental_kind' => 'rental',
+            ':rental_kind' => $rentalKind,
             ':price' => $totalPrice,
             ':notes' => trim((string) ($_POST['notes'] ?? '')) ?: null,
             ':user' => (int) current_user()['id'],
@@ -151,7 +158,7 @@ if ($method === 'POST') {
                 ':reservation_id' => $reservationId,
                 ':amount' => $initialPaymentAmount,
                 ':method' => $initialPaymentMethod,
-                ':note' => 'Betaling geregistreerd bij aanmaak verhuur',
+                ':note' => 'Betaling geregistreerd bij aanmaak ' . strtolower(rental_kind_label($rentalKind)),
                 ':recorded_by' => (int) current_user()['id'],
             ]);
         }
@@ -170,10 +177,12 @@ if ($method === 'POST') {
             'billable_days' => (int) $priceQuote['days'],
             'calculated_total' => $priceQuote['complete'] ? (float) $priceQuote['total'] : null,
             'stored_total' => $totalPrice,
-            'rental_kind' => 'rental',
+            'rental_kind' => $rentalKind,
         ]);
-        flash('success', count($selectedBikeIds) . ' fiets(en) ingepland. Controleer nu het gezamenlijke contract.');
-        redirect('contract.php?reservation_id=' . $reservationId);
+        flash('success', count($selectedBikeIds) . ' fiets(en) ingepland als ' . strtolower(rental_kind_label($rentalKind)) . '.');
+        redirect($rentalKind === 'rental'
+            ? 'contract.php?reservation_id=' . $reservationId
+            : 'reservation.php?id=' . $reservationId);
     } catch (Throwable $e) {
         if (db()->inTransaction()) {
             db()->rollBack();
@@ -186,13 +195,14 @@ if ($method === 'POST') {
 $bikes = all_bikes(true);
 $startAt = parse_datetime($startDate, $startTime);
 $endAt = parse_datetime($endDate, $endTime);
-$availability = ($startAt && $endAt && $endAt > $startAt)
+$availabilityReady = $startAt && $endAt && $endAt > $startAt;
+$availability = $availabilityReady
     ? bike_availability($startAt->format('Y-m-d H:i:s'), $endAt->format('Y-m-d H:i:s'))
     : [];
 
 render_header('Nieuwe verhuur');
 ?>
-<form method="post" enctype="multipart/form-data" class="rental-create-layout" data-reservation-form data-availability-url="api-bike-availability.php" data-visual-bike-picker>
+<form method="post" enctype="multipart/form-data" class="rental-create-layout" data-reservation-form data-availability-ready="<?= $availabilityReady ? '1' : '0' ?>" data-availability-url="api-bike-availability.php" data-visual-bike-picker>
     <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
     <input type="hidden" name="price_calculation_mode" value="manual" data-price-calculation-mode>
 
@@ -205,13 +215,22 @@ render_header('Nieuwe verhuur');
                     <p class="muted">Kies afhaal- en retourmoment. Beschikbaarheid past zich automatisch aan.</p>
                 </div>
             </div>
-            <div class="rental-period-grid">
+            <div class="field">
+                <label for="new-rental-kind">Type reservatie *</label>
+                <select id="new-rental-kind" name="rental_kind" required>
+                    <?php foreach (['rental' => 'Huur', 'test' => 'Test', 'replacement' => 'Vervang'] as $value => $label): ?>
+                        <option value="<?= e($value) ?>" <?= $rentalKind === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <span class="help">Kies waarvoor je de fiets(en) reserveert.</span>
+            </div>
+            <div class="rental-period-grid mt-18">
                 <div class="field"><label>Startdatum</label><input name="start_date" type="date" value="<?= e($startDate) ?>" required></div>
                 <div class="field"><label>Afhalen</label><input name="start_time" type="time" value="<?= e($startTime) ?>" required></div>
                 <div class="field"><label>Einddatum</label><input name="end_date" type="date" value="<?= e($endDate) ?>" required></div>
                 <div class="field"><label>Retour</label><input name="end_time" type="time" value="<?= e($endTime) ?>" required></div>
             </div>
-            <div class="availability-message availability-loading" data-availability-message aria-live="polite">Beschikbaarheid controleren…</div>
+            <div class="availability-message <?= $availabilityReady ? 'availability-success' : 'availability-warning' ?>" data-availability-message aria-live="polite"><?= $availabilityReady ? count(array_filter($availability, static fn (array $state): bool => $state['available'])) . ' fiets(en) beschikbaar.' : 'Kies een geldige huurperiode.' ?></div>
         </section>
 
         <section class="card rental-step-card">
@@ -310,7 +329,7 @@ render_header('Nieuwe verhuur');
             <div class="rental-step-heading">
                 <span class="rental-step-number">3</span>
                 <div>
-                    <h2>Wie huurt?</h2>
+                    <h2>Voor welke klant?</h2>
                     <p class="muted">Enkel de noodzakelijke klantgegevens staan standaard open.</p>
                 </div>
             </div>
@@ -357,16 +376,16 @@ render_header('Nieuwe verhuur');
         <div class="rental-total-block">
             <span>Totaalprijs</span>
             <div class="rental-total-input"><span>€</span><input name="total_price" type="number" min="0" step="0.01" value="0" data-total-price aria-label="Totaalprijs"></div>
-            <small>Je kan het bedrag manueel aanpassen bij uitzonderingen.</small>
+            <small>Controleer de totaalprijs. Het type verandert dit bedrag niet automatisch. Vul €0 in voor een gratis test of vervangfiets.</small>
         </div>
 
         <div class="field"><label>Status</label><select name="status"><option value="reserved">Gereserveerd</option><option value="confirmed">Bevestigd</option></select></div>
         <div class="field"><label>Betaling</label><select name="initial_payment_method" data-payment-method><option value="">Nog niet betaald</option><option value="bancontact">Bancontact</option><option value="cash">Cash</option></select></div>
         <div class="field"><label>Betaald bedrag</label><input name="initial_payment_amount" type="number" min="0" step="0.01" value="0" data-payment-amount></div>
 
-        <button class="button button-full rental-primary-submit" type="submit">Verhuur aanmaken</button>
+        <button class="button button-full rental-primary-submit" type="submit">Reservatie aanmaken</button>
         <a class="button button-secondary button-full" href="planning.php">Annuleren</a>
-        <p class="help rental-contract-note">Na opslaan ga je rechtstreeks naar het gezamenlijke contract.</p>
+        <p class="help rental-contract-note">Bij Huur ga je na opslaan naar het gezamenlijke contract. Bij Test of Vervang open je het dossier.</p>
     </aside>
 </form>
 <?php render_footer();
