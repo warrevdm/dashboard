@@ -192,6 +192,27 @@ let php;
       check(rejected.httpStatusCode === 302 && rejected.headers.location?.[0] === page && JSON.stringify(await state()) === before, `${page}: conflicting ${kind} booking rejected without partial customer, payment or audit records`);
     }
   }
+  // Compare the batched query with the original per-bike conflict predicate.
+  const parity = JSON.parse((await run(`require '/rental-create/app/bootstrap.php';
+    $checks = 0;
+    foreach (['reserved','confirmed','picked_up','returned','cancelled'] as $status) {
+      db()->exec("UPDATE reservations SET status = '" . $status . "'");
+      foreach (['active','maintenance','inactive'] as $bikeStatus) {
+        db()->exec("UPDATE bikes SET status = '" . $bikeStatus . "'");
+        foreach ([null, 1000] as $exclude) {
+          foreach ([['${dates[0]} 09:00:00','${dates[1]} 17:00:00'], ['${dates[1]} 17:00:00','${dates[1]} 18:00:00'], ['${dates[0]} 08:00:00','${dates[0]} 09:00:00']] as [$start,$end]) {
+            $actual = bike_availability($start,$end,$exclude);
+            foreach (all_bikes(true) as $bike) {
+              $expected = $bike['status'] === 'active' && !reservation_conflicts((int)$bike['id'],$start,$end,$exclude);
+              if ($actual[$bike['id']]['available'] !== $expected) throw new RuntimeException('Availability mismatch');
+              $checks++;
+            }
+          }
+        }
+      }
+    }
+    echo json_encode($checks);`)).text);
+  check(parity > 0, 'Batched availability matches conflict rules across statuses, excluded reservation and touching boundaries');
   check(!php.fileExists('/rental-create/storage/private/mail'), 'Creation requests never send or generate mail');
   check((await state()).rental_contracts.length === 0, 'Creation does not silently generate or sign any contract');
   console.log(`PASS: ${checks} real-route creation checks for types, defaults, pricing, permissions, CSRF, conflicts and audit using PHP 8.3.`);

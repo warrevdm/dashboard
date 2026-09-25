@@ -195,13 +195,14 @@ if ($method === 'POST') {
 $bikes = all_bikes(true);
 $startAt = parse_datetime($startDate, $startTime);
 $endAt = parse_datetime($endDate, $endTime);
-$availability = ($startAt && $endAt && $endAt > $startAt)
+$availabilityReady = $startAt && $endAt && $endAt > $startAt;
+$availability = $availabilityReady
     ? bike_availability($startAt->format('Y-m-d H:i:s'), $endAt->format('Y-m-d H:i:s'))
     : [];
 
 render_header('Nieuwe verhuur');
 ?>
-<form method="post" enctype="multipart/form-data" class="rental-create-layout" data-reservation-form data-availability-url="api-bike-availability.php" data-visual-bike-picker>
+<form method="post" enctype="multipart/form-data" class="rental-create-layout" data-reservation-form data-availability-ready="<?= $availabilityReady ? '1' : '0' ?>" data-availability-url="api-bike-availability.php" data-visual-bike-picker>
     <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
     <input type="hidden" name="price_calculation_mode" value="manual" data-price-calculation-mode>
 
@@ -229,7 +230,7 @@ render_header('Nieuwe verhuur');
                 <div class="field"><label>Einddatum</label><input name="end_date" type="date" value="<?= e($endDate) ?>" required></div>
                 <div class="field"><label>Retour</label><input name="end_time" type="time" value="<?= e($endTime) ?>" required></div>
             </div>
-            <div class="availability-message availability-loading" data-availability-message aria-live="polite">Beschikbaarheid controleren…</div>
+            <div class="availability-message <?= $availabilityReady ? 'availability-success' : 'availability-warning' ?>" data-availability-message aria-live="polite"><?= $availabilityReady ? count(array_filter($availability, static fn (array $state): bool => $state['available'])) . ' fiets(en) beschikbaar.' : 'Kies een geldige huurperiode.' ?></div>
         </section>
 
         <section class="card rental-step-card">

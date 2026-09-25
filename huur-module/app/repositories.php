@@ -153,8 +153,23 @@ function reservation_conflicts(int $bikeId, string $startAt, string $endAt, ?int
 
 function bike_availability(string $startAt, string $endAt, ?int $excludeReservationId = null): array
 {
+    // One round trip for the entire fleet; the existing bike index serves EXISTS.
+    $excludeSql = $excludeReservationId !== null ? ' AND r.id != :exclude_id' : '';
+    $stmt = db()->prepare("SELECT b.id, b.status,
+        EXISTS (SELECT 1 FROM reservation_bikes rb
+                JOIN reservations r ON r.id = rb.reservation_id
+                WHERE rb.bike_id = b.id
+                  AND r.status NOT IN ('cancelled', 'returned')
+                  AND r.start_at < :end_at AND r.end_at > :start_at
+                  {$excludeSql}) AS has_conflict
+        FROM bikes b ORDER BY b.category, b.name, b.code");
+    $params = [':start_at' => $startAt, ':end_at' => $endAt];
+    if ($excludeReservationId !== null) {
+        $params[':exclude_id'] = $excludeReservationId;
+    }
+    $stmt->execute($params);
     $result = [];
-    foreach (all_bikes(true) as $bike) {
+    foreach ($stmt->fetchAll() as $bike) {
         $available = (string) $bike['status'] === 'active';
         $reason = match ((string) $bike['status']) {
             'maintenance' => 'In onderhoud',
@@ -162,7 +177,7 @@ function bike_availability(string $startAt, string $endAt, ?int $excludeReservat
             default => null,
         };
 
-        if ($available && reservation_conflicts((int) $bike['id'], $startAt, $endAt, $excludeReservationId)) {
+        if ($available && (bool) $bike['has_conflict']) {
             $available = false;
             $reason = 'Al gereserveerd in deze periode';
         }
