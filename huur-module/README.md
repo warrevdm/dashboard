@@ -373,3 +373,12 @@ Open daarna de planning en test één dossier met minstens twee fietsen en één
 ## Juridisch en privacy
 
 De contracttekst is een operationeel model en moet vóór definitieve productie juridisch worden nagekeken. Maak een kopie van een identiteitskaart niet verplicht zonder concrete wettelijke basis. Gebruik waar mogelijk visuele identificatie en verwerk alleen noodzakelijke gegevens.
+
+## Nieuwe verhuur voor Boekhouding
+
+De rol Boekhouding kan via Nieuwe verhuur een reservatie aanmaken, inclusief
+beschikbaarheidscontrole, Huur/Test/Vervang en een eventuele eerste betaling.
+Na opslaan opent het dossier met de bestaande leesrechten; Annuleren gaat naar
+het kasboek. Planning, fietsbeheer, gebruikersbeheer en contractbeheer blijven
+beperkt zoals voorheen. Upload hiervoor `app/bootstrap.php`, `app/views.php` en
+`public/reservation-new.php`. Er is geen databasemigratie nodig.

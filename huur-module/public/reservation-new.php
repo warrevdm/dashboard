@@ -180,7 +180,7 @@ if ($method === 'POST') {
             'rental_kind' => $rentalKind,
         ]);
         flash('success', count($selectedBikeIds) . ' fiets(en) ingepland als ' . strtolower(rental_kind_label($rentalKind)) . '.');
-        redirect($rentalKind === 'rental'
+        redirect($rentalKind === 'rental' && !is_finance()
             ? 'contract.php?reservation_id=' . $reservationId
             : 'reservation.php?id=' . $reservationId);
     } catch (Throwable $e) {
@@ -384,7 +384,7 @@ render_header('Nieuwe verhuur');
         <div class="field"><label>Betaald bedrag</label><input name="initial_payment_amount" type="number" min="0" step="0.01" value="0" data-payment-amount></div>
 
         <button class="button button-full rental-primary-submit" type="submit">Reservatie aanmaken</button>
-        <a class="button button-secondary button-full" href="planning.php">Annuleren</a>
+        <a class="button button-secondary button-full" href="<?= e(user_home_page()) ?>">Annuleren</a>
         <p class="help rental-contract-note">Bij Huur ga je na opslaan naar het gezamenlijke contract. Bij Test of Vervang open je het dossier.</p>
     </aside>
 </form>

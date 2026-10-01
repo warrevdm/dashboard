@@ -18,7 +18,7 @@ let php;
   for (const name of fs.readdirSync(path.join(root, 'app')).filter(name => name.endsWith('.php'))) {
     php.writeFile(`/rental-create/app/${name}`, fs.readFileSync(path.join(root, 'app', name)));
   }
-  for (const name of ['reservation-new.php', 'quick-replacement.php']) {
+  for (const name of ['reservation-new.php', 'quick-replacement.php', 'api-bike-availability.php', 'reservation.php', 'planning.php', 'users.php', 'bikes.php', 'contract.php']) {
     php.writeFile(`/rental-create/public/${name}`, fs.readFileSync(path.join(root, 'public', name)));
   }
   php.writeFile('/rental-create/schema.sql', fs.readFileSync(path.join(root, 'database/schema.sql')));
@@ -41,9 +41,9 @@ let php;
       jar[name] = value.join('=');
     }
   }
-  async function request(page, { jar = {}, method = 'GET', data = {} } = {}) {
+  async function request(page, { jar = {}, method = 'GET', data = {}, query = {} } = {}) {
     const response = await run(`require '/rental-create/public/${page}';`, {
-      method, relativeUri: `/huur-module/${page}`, protocol: 'https',
+      method, relativeUri: `/huur-module/${page}?${new URLSearchParams(query)}`, protocol: 'https',
       $_SERVER: { SCRIPT_NAME: `/huur-module/${page}`, REMOTE_ADDR: '192.0.2.1', HTTPS: 'on' },
       body: method === 'POST' ? Buffer.from(new URLSearchParams(data).toString()) : undefined,
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', Cookie: Object.entries(jar).map(([key, value]) => `${key}=${value}`).join('; ') },
@@ -98,6 +98,7 @@ let php;
   const quickData = { customer_name: 'Synthetic quick customer', start_date: dates[0], return_date: dates[1], bike_id: '1' };
   const routes = [
     { page: 'reservation-new.php', actor: staff, data: fullData, defaultKind: 'rental' },
+    { page: 'reservation-new.php', actor: finance, data: fullData, defaultKind: 'rental' },
     { page: 'quick-replacement.php', actor: admin, data: quickData, defaultKind: 'replacement' },
   ];
 
@@ -114,7 +115,7 @@ let php;
     const options = [...select[1].matchAll(/<option\b([^>]*)>([^<]*)<\/option>/g)];
     check(options.length === 3 && options.every((match, index) => match[1].includes(`value="${['rental', 'test', 'replacement'][index]}"`) && match[2] === ['Huur', 'Test', 'Vervang'][index]), `${page}: selector offers Huur, Test and Vervang`);
     check(options.filter(match => /\bselected\b/.test(match[1])).length === 1 && options.some(match => match[1].includes(`value="${defaultKind}"`) && /\bselected\b/.test(match[1])), `${page}: existing default stays selected`);
-    for (const method of ['GET', 'POST']) {
+    for (const method of (page === 'quick-replacement.php' ? ['GET', 'POST'] : [])) {
       const denied = await request(page, { jar: finance.jar, method, data: { ...data, _token: finance.token, rental_kind: 'test' } });
       check(denied.httpStatusCode === 302 && denied.headers.location?.[0] === 'cashbook.php', `${page}: finance ${method} is redirected before creation`);
     }
@@ -130,6 +131,28 @@ let php;
   check((await request('quick-replacement.php', { jar: workshop.jar })).httpStatusCode === 200, 'Existing workshop account retains quick-form access');
   check(JSON.stringify(await state()) === empty, 'GETs and rejected authorization or CSRF requests create no records');
 
+  const financeForm = await request('reservation-new.php', {jar: finance.jar});
+  check(financeForm.text.includes('href="reservation-new.php">Nieuwe verhuur') && financeForm.text.includes('href="cashbook.php">Annuleren'), 'Finance navigation offers creation and cancellation to cashbook');
+  for (const page of ['planning.php','bikes.php','users.php','contract.php']) {
+    const denied=await request(page,{jar:finance.jar});
+    check(denied.httpStatusCode===302 && denied.headers.location?.[0]==='cashbook.php', 'Finance unrelated route remains restricted: '+page);
+  }
+  const availability=await request('api-bike-availability.php',{jar:finance.jar});
+  check(availability.httpStatusCode===422 && JSON.parse(availability.text).ok===false, 'Finance can reach availability validation instead of being redirected');
+  const validAvailability=await request('api-bike-availability.php',{jar:finance.jar,query:{start_date:dates[0],start_time:'09:00',end_date:dates[1],end_time:'17:00'}});
+  check(validAvailability.httpStatusCode===200 && JSON.parse(validAvailability.text).items.length===4, 'Finance receives bike availability JSON');
+  for(const kind of ['rental','test','replacement']) {
+    await reset();
+    const response=await request('reservation-new.php',{jar:finance.jar,method:'POST',data:{...fullData,_token:finance.token,rental_kind:kind}});
+    const saved=await state(); const reservation=saved.reservations[0];
+    check(saved.reservations.length===1 && reservation.created_by===2 && reservation.rental_kind===kind && saved.reservation_bikes.length===2, 'Finance creates '+kind+' with two reserved bikes');
+    check(saved.payment_logs.length===1 && saved.payment_logs[0].recorded_by===2, 'Finance initial payment is recorded');
+    check(response.headers.location?.[0]===`reservation.php?id=${reservation.id}`, 'Finance continues to permitted dossier');
+    const dossier=await request('reservation.php',{jar:finance.jar,query:{id:reservation.id}});
+    check(dossier.httpStatusCode===200 && dossier.text.includes('data-finance-readonly="1"'), 'Finance can read created dossier');
+    const forbidden=await request('reservation.php',{jar:finance.jar,method:'POST',data:{id:reservation.id,_token:finance.token,action:'update-details'}});
+    check(forbidden.httpStatusCode===403, 'Finance still cannot edit existing dossier');
+  }
   // Type alone must not change price calculation, payments, bike selection or availability.
   for (const mode of ['manual', 'auto']) {
     for (const kind of ['rental', 'test', 'replacement']) {

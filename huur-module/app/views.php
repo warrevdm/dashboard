@@ -55,6 +55,9 @@ function render_header(string $title, bool $showNav = true, string $assetProfile
                     <?php endif; ?>
                     <a href="bikes.php">Fietsen</a>
                 <?php endif; ?>
+                <?php if (is_finance()): ?>
+                    <a href="reservation-new.php">Nieuwe verhuur</a>
+                <?php endif; ?>
                 <?php if (can_view_cashbook()): ?>
                     <a href="cashbook.php">Kasboek</a>
                 <?php endif; ?>
