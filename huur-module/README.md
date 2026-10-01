@@ -379,6 +379,7 @@ De contracttekst is een operationeel model en moet vóór definitieve productie 
 De rol Boekhouding kan via Nieuwe verhuur een reservatie aanmaken, inclusief
 beschikbaarheidscontrole, Huur/Test/Vervang en een eventuele eerste betaling.
 Na opslaan opent het dossier met de bestaande leesrechten; Annuleren gaat naar
-het kasboek. Planning, fietsbeheer, gebruikersbeheer en contractbeheer blijven
+het kasboek. Boekhouding kan ook de planning bekijken en vanuit een vrij vak
+een nieuwe verhuur starten. Fietsbeheer, gebruikersbeheer en contractbeheer blijven
 beperkt zoals voorheen. Upload hiervoor `app/bootstrap.php`, `app/views.php` en
 `public/reservation-new.php`. Er is geen databasemigratie nodig.

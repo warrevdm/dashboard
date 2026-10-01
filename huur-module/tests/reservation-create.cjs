@@ -133,10 +133,13 @@ let php;
 
   const financeForm = await request('reservation-new.php', {jar: finance.jar});
   check(financeForm.text.includes('href="reservation-new.php">Nieuwe verhuur') && financeForm.text.includes('href="cashbook.php">Annuleren'), 'Finance navigation offers creation and cancellation to cashbook');
-  for (const page of ['planning.php','bikes.php','users.php','contract.php']) {
+  for (const page of ['bikes.php','users.php','contract.php']) {
     const denied=await request(page,{jar:finance.jar});
     check(denied.httpStatusCode===302 && denied.headers.location?.[0]==='cashbook.php', 'Finance unrelated route remains restricted: '+page);
   }
+  const financePlanning=await request('planning.php',{jar:finance.jar});
+  check(financePlanning.httpStatusCode===200 && financePlanning.text.includes('href="planning.php">Planning'), 'Finance can open planning and sees navigation');
+  check(financePlanning.text.includes('class="empty-slot"') && financePlanning.text.includes('href="reservation-new.php?bike_id='), 'Finance planning offers new bookings in free slots');
   const availability=await request('api-bike-availability.php',{jar:finance.jar});
   check(availability.httpStatusCode===422 && JSON.parse(availability.text).ok===false, 'Finance can reach availability validation instead of being redirected');
   const validAvailability=await request('api-bike-availability.php',{jar:finance.jar,query:{start_date:dates[0],start_time:'09:00',end_date:dates[1],end_time:'17:00'}});
