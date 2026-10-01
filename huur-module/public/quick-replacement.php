@@ -6,6 +6,8 @@ require_once __DIR__ . '/../app/bootstrap.php';
 require_quick_replacement();
 
 $method = (string) ($_SERVER['REQUEST_METHOD'] ?? 'GET');
+$rentalKindInput = $_POST['rental_kind'] ?? 'replacement';
+$rentalKind = is_string($rentalKindInput) ? $rentalKindInput : '';
 $name = trim((string) ($_POST['customer_name'] ?? ''));
 $selectedBikeId = (int) ($_POST['bike_id'] ?? 0);
 
@@ -42,6 +44,11 @@ $returnAt = parse_datetime($returnDate, '17:00');
 
 if ($method === 'POST') {
     verify_csrf();
+
+    if (!in_array($rentalKind, ['rental', 'test', 'replacement'], true)) {
+        flash('error', 'Kies een geldig type reservatie: Huur, Test of Vervang.');
+        redirect('quick-replacement.php');
+    }
 
     if ($name === '' || $selectedBikeId < 1 || $startDate === '' || $returnDate === '') {
         flash('error', 'Vul de naam, startdatum en retourdatum in en kies een fiets.');
@@ -96,7 +103,7 @@ if ($method === 'POST') {
             ':start_at' => $startAt,
             ':end_at' => $endAt,
             ':status' => $startDate === $today ? 'picked_up' : 'confirmed',
-            ':rental_kind' => 'replacement',
+            ':rental_kind' => $rentalKind,
             ':notes' => 'Snelle fietsregistratie via werkplaats. Start ' . $startAtObject->format('d/m/Y H:i') . ', retour ' . $returnAt->format('d/m/Y') . ' om 17:00.',
             ':created_by' => (int) current_user()['id'],
         ]);
@@ -119,12 +126,12 @@ if ($method === 'POST') {
             'start_at' => $startAt,
             'return_at' => $endAt,
             'total_price' => 0,
-            'rental_kind' => 'replacement',
+            'rental_kind' => $rentalKind,
         ]);
 
         db()->commit();
-        flash('success', $bike['code'] . ' — ' . $bike['name'] . ' is ingepland voor ' . $name . ' van ' . $startAtObject->format('d/m/Y') . ' tot ' . $returnAt->format('d/m/Y') . '.');
-        redirect('planning.php');
+        flash('success', $bike['code'] . ' — ' . $bike['name'] . ' is als ' . strtolower(rental_kind_label($rentalKind)) . ' ingepland voor ' . $name . ' van ' . $startAtObject->format('d/m/Y') . ' tot ' . $returnAt->format('d/m/Y') . '.');
+        redirect($rentalKind === 'replacement' ? 'planning.php' : 'reservation.php?id=' . $reservationId);
     } catch (Throwable $e) {
         if (db()->inTransaction()) {
             db()->rollBack();
@@ -153,13 +160,23 @@ render_header('Snelle vervangfiets');
             <div>
                 <span class="quick-replacement-kicker">Werkplaats</span>
                 <h2>Snel een fiets inplannen</h2>
-                <p class="muted">Naam, startdatum, retourdatum en fiets. Meer heb je niet nodig.</p>
+                <p class="muted">Kies Huur, Test of Vervang en vul naam, periode en fiets in.</p>
             </div>
             <a class="button button-secondary" href="planning.php">Terug naar planning</a>
         </div>
 
         <form method="post" class="stack quick-replacement-form">
             <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
+
+            <div class="field">
+                <label for="quick-rental-kind">Type reservatie *</label>
+                <select id="quick-rental-kind" name="rental_kind" required>
+                    <?php foreach (['rental' => 'Huur', 'test' => 'Test', 'replacement' => 'Vervang'] as $value => $label): ?>
+                        <option value="<?= e($value) ?>" <?= $rentalKind === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <span class="help">Een snelle registratie start op €0. Vul een eventuele huurprijs of kost en bijkomende klantgegevens nadien aan in het dossier.</span>
+            </div>
 
             <div class="quick-replacement-basics">
                 <div class="field quick-name-field">

@@ -2,8 +2,20 @@
 
 declare(strict_types=1);
 
+$planningStartedAt = microtime(true);
 require_once __DIR__ . '/../app/bootstrap.php';
 require_auth();
+$planningBootstrapMs = (microtime(true) - $planningStartedAt) * 1000;
+
+// Save the logout token and consume flashes before releasing the session lock.
+ob_start();
+render_header('Verhuurplanning', true, 'planning');
+$planningHeader = (string) ob_get_clean();
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+header('Cache-Control: no-store, private');
+$planningDataStartedAt = microtime(true);
 
 $days = max(7, min(28, (int) ($_GET['days'] ?? 14)));
 $start = DateTimeImmutable::createFromFormat('!Y-m-d', (string) ($_GET['start'] ?? date('Y-m-d'))) ?: new DateTimeImmutable('today');
@@ -114,7 +126,10 @@ $focusLabels = [
     'active' => 'Verhuren onderweg',
 ];
 
-render_header('Verhuurplanning');
+// These phases exclude network time and the PHP-worker queue.
+header('Server-Timing: bootstrap;dur=' . number_format($planningBootstrapMs, 3, '.', '')
+    . ', data;dur=' . number_format((microtime(true) - $planningDataStartedAt) * 1000, 3, '.', ''));
+echo $planningHeader;
 ?>
 <section class="grid planning-stats" aria-label="Snelfilters planning">
     <a class="card col-4 planning-stat-card <?= $focus === 'pickups' ? 'is-active' : '' ?>" href="planning.php?focus=pickups<?= e($categoryParam) ?>">
@@ -172,7 +187,8 @@ render_header('Verhuurplanning');
         <?php endforeach; ?>
         <span class="legend-title">Type:</span>
         <span class="legend-item"><i class="booking-kind booking-kind-rental">€</i>Huurfiets · betaling</span>
-        <span class="legend-item"><i class="booking-kind booking-kind-replacement">↺</i>Vervangfiets · geen huurbetaling</span>
+        <span class="legend-item"><i class="booking-kind booking-kind-test">T</i>Test</span>
+        <span class="legend-item"><i class="booking-kind booking-kind-replacement">↺</i>Vervangfiets · eventuele kost</span>
         <span class="legend-title">Dossier:</span>
         <span class="legend-item"><i class="booking-status-icon booking-contract-signed">✍✓</i>Contract ondertekend</span>
         <span class="legend-item"><i class="booking-status-icon booking-contract-open">✍!</i>Nog niet ondertekend</span>
@@ -233,14 +249,14 @@ render_header('Verhuurplanning');
                             $contractSigned = !empty($active['contract_signed_at']);
                             $rentalKind = (string) ($active['rental_kind'] ?? 'rental');
                             $isReplacement = $rentalKind === 'replacement';
-                            $kindLabel = $isReplacement ? 'Vervang' : 'Huur';
-                            $kindIcon = $isReplacement ? '↺' : '€';
+                            $kindLabel = rental_kind_label($rentalKind);
+                            $kindIcon = rental_kind_icon($rentalKind);
                             $totalPrice = round((float) ($active['total_price'] ?? 0), 2);
                             $paidAmount = round((float) ($active['paid_amount'] ?? 0), 2);
-                            if ($isReplacement && $totalPrice <= 0) {
+                            if (in_array($rentalKind, ['test', 'replacement'], true) && $totalPrice <= 0) {
                                 $paymentClass = 'booking-payment-not-required';
                                 $paymentIcon = '€0';
-                                $paymentTitle = 'Geen kost gekoppeld aan deze vervangfiets';
+                                $paymentTitle = $isReplacement ? 'Geen kost gekoppeld aan deze vervangfiets' : 'Geen kost gekoppeld aan deze test';
                             } elseif ($totalPrice <= 0) {
                                 $paymentClass = 'booking-payment-unpriced';
                                 $paymentIcon = '€—';
@@ -260,9 +276,9 @@ render_header('Verhuurplanning');
                             }
                     ?>
                         <td colspan="<?= $span ?>">
-                            <a class="booking-block booking-type-<?= $isReplacement ? 'replacement' : 'rental' ?> status-<?= e($active['status']) ?>" href="reservation.php?id=<?= (int) $active['id'] ?>" data-customer-name="<?= e($active['customer_name']) ?>" title="<?= e($active['customer_name']) ?> · <?= e($kindLabel) ?> · <?= e((new DateTimeImmutable($active['start_at']))->format('d/m/Y H:i')) ?> → <?= e($activeEnd->format('d/m/Y H:i')) ?>">
+                            <a class="booking-block booking-type-<?= e($rentalKind) ?> status-<?= e($active['status']) ?>" href="reservation.php?id=<?= (int) $active['id'] ?>" data-customer-name="<?= e($active['customer_name']) ?>" title="<?= e($active['customer_name']) ?> · <?= e($kindLabel) ?> · <?= e((new DateTimeImmutable($active['start_at']))->format('d/m/Y H:i')) ?> → <?= e($activeEnd->format('d/m/Y H:i')) ?>">
                                 <span class="booking-kind-row">
-                                    <span class="booking-kind booking-kind-<?= $isReplacement ? 'replacement' : 'rental' ?>"><span aria-hidden="true"><?= e($kindIcon) ?></span> <?= e($kindLabel) ?></span>
+                                    <span class="booking-kind booking-kind-<?= e($rentalKind) ?>"><span aria-hidden="true"><?= e($kindIcon) ?></span> <?= e($kindLabel) ?></span>
                                     <?php if ($isReplacement): ?><span class="booking-no-payment"><?= $totalPrice > 0 ? 'kost € ' . number_format($totalPrice, 2, ',', '.') : 'geen kost' ?></span><?php endif; ?>
                                 </span>
                                 <span class="booking-title-row">
@@ -293,4 +309,4 @@ render_header('Verhuurplanning');
         </table></div>
     <?php endif; ?>
 </section>
-<?php render_footer();
+<?php render_footer('planning');
