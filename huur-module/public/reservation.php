@@ -450,6 +450,8 @@ render_header(($isReplacement ? 'Vervangfiets #' : ($isTest ? 'Testreservatie #'
     </aside>
 
     <?php if ($canEdit): ?>
+    <link rel="stylesheet" href="assets/dossier-bikes.css?v=1">
+    <script src="assets/dossier-bikes.js?v=1" defer></script>
     <div class="card col-12" id="dossier-bewerken">
         <div class="actions actions-between">
             <div>
@@ -485,17 +487,42 @@ render_header(($isReplacement ? 'Vervangfiets #' : ($isTest ? 'Testreservatie #'
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <fieldset class="field field-full">
-                    <legend>Fietsen in dit dossier</legend>
+                <fieldset class="field field-full dossier-bikes" data-dossier-bikes>
+                    <legend>Stel het fietspakket samen</legend>
                     <input type="hidden" name="edit_bikes" value="1">
                     <p class="help">Vink fietsen aan om ze toe te voegen, of uit om ze uit deze verhuur te halen. Behoud minstens één fiets. Beschikbaarheid wordt bij opslaan gecontroleerd. De afgesproken totaalprijs blijft behouden; pas deze indien nodig apart aan.</p>
+                    <div class="dossier-bikes-toolbar">
+                        <label class="dossier-bikes-search">Zoek een fiets<input type="search" placeholder="Naam, fietsnummer of categorie…" data-bike-search></label>
+                        <label class="dossier-bikes-filter"><input type="checkbox" data-selected-only> Alleen geselecteerde fietsen</label>
+                        <span class="dossier-bikes-count" data-bike-count aria-live="polite"></span>
+                    </div>
+                    <div class="dossier-bikes-grid">
                     <?php $selectedBikeIds = array_map('intval', is_array($editValues['bike_ids'] ?? null) ? $editValues['bike_ids'] : []);
                     $currentBikeIds = array_map('intval', array_column($reservation['bikes'], 'id'));
                     foreach ($replacementBikeOptions as $option):
                         if ($option['status'] !== 'active' && !in_array((int) $option['id'], $currentBikeIds, true)) continue;
+                        $selected = in_array((int) $option['id'], $selectedBikeIds, true);
+                        $inDossier = in_array((int) $option['id'], $currentBikeIds, true);
                     ?>
-                        <label><input class="checkbox-inline" type="checkbox" name="bike_ids[]" value="<?= (int) $option['id'] ?>" <?= in_array((int) $option['id'], $selectedBikeIds, true) ? 'checked' : '' ?>> <?= e($option['code'] . ' — ' . $option['name'] . ($option['status'] !== 'active' ? ' · niet actief' : '')) ?></label>
+                        <label class="dossier-bike-card" data-bike-card data-search="<?= e($option['code'] . ' ' . $option['name'] . ' ' . $option['category']) ?>">
+                            <input class="dossier-bike-check" type="checkbox" name="bike_ids[]" value="<?= (int) $option['id'] ?>" <?= $selected ? 'checked' : '' ?>>
+                            <span class="dossier-bike-image">
+                                <?php if (!empty($option['photo_stored_name'])): ?>
+                                    <img src="<?= e(bike_photo_src($option, 480)) ?>" alt="" loading="lazy" decoding="async" width="320" height="180">
+                                <?php else: ?><span class="dossier-bike-placeholder">Geen foto beschikbaar</span><?php endif; ?>
+                                <span class="dossier-bike-badge"><?= $inDossier ? 'In huidig dossier' : 'Toe te voegen' ?></span>
+                            </span>
+                            <span class="dossier-bike-body">
+                                <span class="dossier-bike-code"><?= e($option['code'] . ' · ' . $option['category']) ?></span>
+                                <strong><?= e($option['name']) ?></strong>
+                                <?php if ($option['status'] !== 'active'): ?><span>Niet actief · al gekoppeld</span><?php endif; ?>
+                                <span class="dossier-bike-action"><span class="dossier-bike-add">+ Toevoegen</span><span class="dossier-bike-remove">✓ Geselecteerd · verwijderen</span></span>
+                            </span>
+                        </label>
                     <?php endforeach; ?>
+                    </div>
+                    <p data-bike-empty hidden>Geen fietsen gevonden. Pas je zoekopdracht of filter aan.</p>
+                    <p class="dossier-bikes-note">Je selectie wordt pas verwerkt wanneer je het dossier opslaat.</p>
                 </fieldset>
                 <?php foreach (['start_date' => ['Startdatum', 'date'], 'start_time' => ['Startuur', 'time'], 'end_date' => ['Einddatum', 'date'], 'end_time' => ['Einduur', 'time']] as $field => [$label, $type]): ?>
                     <div class="field">
