@@ -14,17 +14,7 @@ try {
         echo "Dagmail uitgeschakeld. Stel DAILY_RENTAL_MAIL_ENABLED=1 in.\n";
         exit(0);
     }
-    $transport = strtolower((string) env('MAIL_TRANSPORT', 'log'));
-    if (!in_array($transport, ['smtp', 'graph'], true)) {
-        throw new RuntimeException('Configureer MAIL_TRANSPORT=smtp of graph vóór activatie.');
-    }
-    $required = $transport === 'smtp' ? ['MAIL_HOST', 'MAIL_FROM_ADDRESS'] : ['GRAPH_TENANT_ID', 'GRAPH_CLIENT_ID', 'GRAPH_CLIENT_SECRET'];
-    foreach ($required as $key) {
-        if (trim((string) env($key, '')) === '') throw new RuntimeException('Mailinstelling ontbreekt: ' . $key);
-    }
-    if ($transport === 'smtp' && !class_exists(\PHPMailer\PHPMailer\PHPMailer::class)) {
-        throw new RuntimeException('PHPMailer ontbreekt; installeer de Composer-afhankelijkheden.');
-    }
+    validate_daily_rental_mail_config();
     echo run_daily_rental_mail(db(), $now, 'send_daily_rental_message') . PHP_EOL;
 } catch (Throwable $e) {
     fwrite(STDERR, $e->getMessage() . PHP_EOL);

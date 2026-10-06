@@ -31,3 +31,30 @@ Geeft HTML op stdout, geen e-mail en geen verzendregistratie. Bevat klantnamen: 
 ## Dubbele verzending en fouten
 
 SQLite-tabel daily_rental_mail_runs bewaart een unieke dag/ontvanger-claim vóór verzending. Herhaalde/gelijktijdige cronjobs sturen niet opnieuw naar dezelfde ontvanger. Bij een fout/time-out blijft status uncertain (of sending bij een afgebroken proces): de provider kan het bericht al hebben geaccepteerd. De andere ontvanger wordt nog geprobeerd. De opdracht geeft exitcode 1 zolang er een onzekere verzending voor vandaag bestaat. Inspecteer providerlogs; pas na bevestiging van niet-verzenden mag een beheerder de betreffende dag/ontvanger-record verwijderen om opnieuw te proberen. Verwijder nooit sent-records om duplicaten te voorkomen. Provideracceptatie garandeert geen inboxaflevering.
+
+## Hostingpaneel met URL-cron (Combell)
+
+Upload ook daily-rental-mail.php in de module-root en public/daily-rental-mail.php, plus de bijgewerkte app/daily_rental_mail.php en bin/send-daily-rentals.php.
+
+Genereer lokaal een willekeurige sleutel van 64 hextekens, bijvoorbeeld in PowerShell:
+
+```powershell
+[guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
+```
+
+Voeg aan de private huur-module/.env toe (vervang de placeholder):
+
+```
+DAILY_RENTAL_MAIL_ENABLED=1
+DAILY_RENTAL_CRON_KEY=JOUW_64_HEXTEKENS
+```
+
+In het paneel, achter de vaste https://aertsactionbike.cc/ prefix:
+
+```
+huur-module/daily-rental-mail.php?key=JOUW_64_HEXTEKENS
+```
+
+Elke 5 minuten, elk uur, elke dag, elke maand, elke weekdag (`*/5 * * * *`). Gebruik één cronjob: kies URL of CLI. HTTPS vereist, geen login nodig, ontbrekende/onjuiste sleutel geeft 403. De sleutel geeft uitsluitend toegang tot de vaste dagmail; geen preview, ontvangerwijzigingen, handmatige force-send of tijdstipoverride. Geen databaseverbinding of sessie vóór sleutelcontrole, en geen databasewerk vóór 17:00.
+
+Bewaar de sleutel niet in GitHub of screenshots. URL-crons kunnen de sleutel opnemen in hosting-toegangslogs: beperk toegang tot deze logs. Bij vermoeden van uitlekken: vervang de sleutel zowel in .env als in de cronjob. Een scheduler met headerondersteuning kan X-Cron-Key gebruiken in plaats van de querystring. HTTP 200 vóór 17:00 betekent uitsluitend dat authenticatie/tijdcontrole werken; dit bewijst nog geen mailaflevering. De eerste verzending vanaf 17:00 moet in beide mailboxen worden gecontroleerd.

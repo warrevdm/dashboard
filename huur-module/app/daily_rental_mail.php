@@ -112,3 +112,24 @@ function run_daily_rental_mail(PDO $pdo, DateTimeImmutable $now, callable $send)
     if ($uncertain) throw new RuntimeException('Een verzending is niet bevestigd. Controleer de mailprovider vóór opnieuw verzenden; automatische herhaling is geblokkeerd.');
     return $sent . ' dagmails verzonden; overige ontvangers waren al verwerkt.';
 }
+
+function validate_daily_rental_mail_config(): void
+{
+    $transport = strtolower((string) env('MAIL_TRANSPORT', 'log'));
+    if (!in_array($transport, ['smtp', 'graph'], true)) {
+        throw new RuntimeException('Configureer MAIL_TRANSPORT=smtp of graph vóór activatie.');
+    }
+    $required = $transport === 'smtp' ? ['MAIL_HOST', 'MAIL_FROM_ADDRESS'] : ['GRAPH_TENANT_ID', 'GRAPH_CLIENT_ID', 'GRAPH_CLIENT_SECRET'];
+    foreach ($required as $key) {
+        if (trim((string) env($key, '')) === '') throw new RuntimeException('Mailinstelling ontbreekt: ' . $key);
+    }
+    if ($transport === 'smtp' && !class_exists(\PHPMailer\PHPMailer\PHPMailer::class)) {
+        throw new RuntimeException('PHPMailer ontbreekt; installeer de Composer-afhankelijkheden.');
+    }
+}
+
+function daily_rental_cron_authorized(mixed $provided, string $expected): bool
+{
+    return preg_match('/\A[a-f0-9]{64}\z/i', $expected) === 1
+        && is_string($provided) && hash_equals($expected, $provided);
+}

@@ -33,5 +33,22 @@ const {loadNodeRuntime} = req('@php-wasm/node');
  echo "PASS: $checks daily mail checks; synthetic data and fake sender only.";
  `});
  assert.equal(r.exitCode,0,r.text+' '+r.errors);assert.match(r.text,/PASS: 13/);console.log(r.text);
+ php.mkdirTree('/web/app'); php.mkdirTree('/web/public');
+ for (const name of ['env.php','daily_rental_mail.php']) php.writeFile('/web/app/'+name,fs.readFileSync(path.resolve(__dirname,'../app/'+name)));
+ php.writeFile('/web/public/daily-rental-mail.php',fs.readFileSync(path.resolve(__dirname,'../public/daily-rental-mail.php')));
+ const key='a'.repeat(64);
+ async function request(query,extra={}) {
+   return php.run({scriptPath:'/web/public/daily-rental-mail.php',method:'GET',relativeUri:'/daily-rental-mail.php'+query,
+     $_SERVER:{HTTPS:'on'},env:{DAILY_RENTAL_CRON_KEY:key,DAILY_RENTAL_MAIL_ENABLED:'0'},...extra});
+ }
+ for (const query of ['', '?key=wrong', '?key[]=invalid']) {
+   const result=await request(query);assert.equal(result.httpStatusCode,403);assert.equal(result.text,'Geen toegang.');
+ }
+ const valid=await request('?key='+key);assert.equal(valid.httpStatusCode,200);assert.equal(valid.text,'Dagmail uitgeschakeld.');
+ assert.ok(JSON.stringify(valid.headers).includes('no-store'));
+ const empty=await request('?key=',{env:{DAILY_RENTAL_CRON_KEY:'',DAILY_RENTAL_MAIL_ENABLED:'0'}});assert.equal(empty.httpStatusCode,403);
+ const http=await php.run({code:"<?php $_SERVER['REQUEST_METHOD']='GET'; $_SERVER['HTTPS']='off'; unset($_SERVER['HTTP_X_FORWARDED_PROTO']); require '/web/public/daily-rental-mail.php';"});assert.equal(http.httpStatusCode,403);
+ const head=await request('?key='+key,{method:'HEAD'});assert.equal(head.httpStatusCode,405);
+ console.log('PASS: web cron rejects absent, wrong, array and empty keys, HTTP and HEAD; valid key works without DB/session.');
  } finally {php.exit();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
