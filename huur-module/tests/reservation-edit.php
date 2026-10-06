@@ -117,6 +117,53 @@ function input(int $id, array $changes = []): array
 }
 
 // Complete dossier edit, while preserving the agreed price, payment history and every bike.
+// Package membership is atomic and preserves agreed financial data.
+$id = fixture();
+$before = find_reservation($id);
+$stale = input($id, ['edit_bikes' => '1', 'bike_ids' => ['1']]);
+contract($pdo, $id);
+update_reservation_details($id, input($id, ['edit_bikes' => '1', 'bike_ids' => ['2', '3', '3']]));
+$changed = find_reservation($id);
+check(array_column($changed['bikes'], 'id') === [2, 3], 'Package removes, adds and deduplicates bikes');
+check((int) $changed['bike_id'] === 2, 'Primary bike remains a package member');
+check((float) $changed['total_price'] === (float) $before['total_price'], 'Agreed total is preserved');
+check((float) $changed['bikes'][0]['reserved_daily_rate'] === 12.5 && (float) $changed['bikes'][1]['reserved_daily_rate'] === 45.0, 'Retained rate preserved and added bike uses its rate');
+check(!find_contract_by_reservation($id), 'Package change invalidates unsigned contract');
+check(!reservation_conflicts(1, $changed['start_at'], $changed['end_at']), 'Removed bike released in planning');
+check(reservation_conflicts(3, $changed['start_at'], $changed['end_at']), 'Added bike reserved in planning');
+fails(fn () => update_reservation_details($id, $stale), 'intussen gewijzigd', 'Stale package update rejected');
+$before = snapshot($pdo);
+fails(fn () => update_reservation_details($id, input($id, ['edit_bikes' => '1', 'bike_ids' => []])), 'minstens', 'Cannot empty package');
+fails(fn () => update_reservation_details($id, input($id, ['edit_bikes' => '1', 'bike_ids' => ['4']])), 'actieve', 'Cannot add maintenance bike');
+fails(fn () => update_reservation_details($id, input($id, ['edit_bikes' => '1', 'bike_ids' => ['999']])), 'actieve', 'Cannot add missing bike');
+check(snapshot($pdo) === $before, 'Invalid package changes roll back');
+reservation($pdo, [1]);
+$before = snapshot($pdo);
+fails(fn () => update_reservation_details($id, input($id, ['edit_bikes' => '1', 'bike_ids' => ['1','2']])), 'overlapt', 'Cannot add overlapping bike');
+check(snapshot($pdo) === $before, 'Conflict preserves original package');
+contract($pdo, $id, true);
+$beforeContract = find_contract_by_reservation($id);
+update_reservation_details($id, input($id, ['edit_bikes' => '1', 'bike_ids' => ['2']]));
+check(find_contract_by_reservation($id) === $beforeContract, 'Signed snapshot preserved after package removal');
+
+$migrationDb = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$migrationDb->exec($schema);
+$migrationDb->exec("INSERT INTO users(name,email,password_hash,role) VALUES ('Yana','yana@aertsactionbike.cc','fixture','finance'), ('Other','other@example.test','fixture','staff')");
+apply_yana_admin_once($migrationDb);
+check($migrationDb->query('SELECT role FROM users WHERE id=1')->fetchColumn() === 'admin', 'Yana promoted');
+check($migrationDb->query('SELECT role FROM users WHERE id=2')->fetchColumn() === 'staff', 'Other account unchanged');
+$migrationDb->exec("UPDATE users SET role='finance' WHERE id=1");
+apply_yana_admin_once($migrationDb);
+check($migrationDb->query('SELECT role FROM users WHERE id=1')->fetchColumn() === 'finance', 'Later manual role change respected');
+foreach (['missing', 'inactive', 'ambiguous'] as $scenario) {
+    $m = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    $m->exec($schema);
+    if ($scenario !== 'missing') $m->exec("INSERT INTO users(name,email,password_hash,role,active) VALUES ('Yana','yana@aertsactionbike.cc','fixture','finance',0)");
+    if ($scenario === 'ambiguous') $m->exec("UPDATE users SET active=1; INSERT INTO users(name,email,password_hash,role) VALUES ('Duplicate','YANA@aertsactionbike.cc','fixture','staff')");
+    apply_yana_admin_once($m);
+    check((int) $m->query("SELECT COUNT(*) FROM users WHERE role='admin'")->fetchColumn() === 0, 'Migration skips ' . $scenario . ' account');
+}
+
 $id = fixture();
 $money = rows($pdo, 'payment_logs');
 $bikes = rows($pdo, 'reservation_bikes');

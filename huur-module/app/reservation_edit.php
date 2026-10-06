@@ -59,7 +59,31 @@ function update_reservation_details(int $id, array $input): void
         $currentBikeIds = array_map(static fn (array $bike): int => (int) $bike['id'], $reservation['bikes']);
         $bikes = $reservation['bikes'];
         $bikeChanged = false;
-        if (isset($input['bike_id']) && (int) $input['bike_id'] !== (int) $reservation['bike_id']) {
+        if (array_key_exists('edit_bikes', $input)) {
+            $selected = $input['bike_ids'] ?? [];
+            if (!is_array($selected) || !$selected) {
+                throw new DomainException('Selecteer minstens één fiets.');
+            }
+            $bikes = [];
+            $seen = [];
+            $oldRates = array_column($reservation['bikes'], 'reserved_daily_rate', 'id');
+            foreach ($selected as $value) {
+                if (!is_scalar($value) || !ctype_digit((string) $value) || (int) $value < 1) {
+                    throw new DomainException('Ongeldige fietsselectie.');
+                }
+                $bikeId = (int) $value;
+                if (isset($seen[$bikeId])) continue;
+                $seen[$bikeId] = true;
+                $bike = find_bike($bikeId);
+                if (!$bike || ($bike['status'] !== 'active' && !in_array($bikeId, $currentBikeIds, true))) {
+                    throw new DomainException('Kies een bestaande, actieve fiets.');
+                }
+                $bike['reserved_daily_rate'] = $oldRates[$bikeId] ?? $bike['daily_rate'];
+                $bikes[] = $bike;
+            }
+            $newIds = array_column($bikes, 'id');
+            $bikeChanged = count($newIds) !== count($currentBikeIds) || array_diff($newIds, $currentBikeIds);
+        } elseif (isset($input['bike_id']) && (int) $input['bike_id'] !== (int) $reservation['bike_id']) {
             if ($reservation['rental_kind'] !== 'replacement' || count($bikes) !== 1) {
                 throw new DomainException('Een fietswissel is hier alleen mogelijk bij een vervangdossier met één fiets.');
             }
@@ -122,7 +146,9 @@ function update_reservation_details(int $id, array $input): void
             $stmt = $pdo->prepare('DELETE FROM reservation_bikes WHERE reservation_id = :id');
             $stmt->execute([':id' => $id]);
             $stmt = $pdo->prepare('INSERT INTO reservation_bikes (reservation_id, bike_id, daily_rate) VALUES (:id, :bike, :rate)');
-            $stmt->execute([':id' => $id, ':bike' => $bikes[0]['id'], ':rate' => $reservation['bikes'][0]['reserved_daily_rate'] ?? 0]);
+            foreach ($bikes as $bike) {
+                $stmt->execute([':id' => $id, ':bike' => $bike['id'], ':rate' => $bike['reserved_daily_rate'] ?? ($reservation['bikes'][0]['reserved_daily_rate'] ?? 0)]);
+            }
         }
 
         $contractChanged = $customerChanges || $bikeChanged || $kind !== $reservation['rental_kind']

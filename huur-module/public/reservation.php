@@ -281,7 +281,7 @@ $rentalKind = (string) ($reservation['rental_kind'] ?? 'rental');
 $isReplacement = $rentalKind === 'replacement';
 $isTest = $rentalKind === 'test';
 $canEdit = !$isFinanceView && (string) $reservation['status'] !== 'cancelled';
-$replacementBikeOptions = $canEdit && $isReplacement && count($reservation['bikes']) === 1 ? all_bikes(true) : [];
+$replacementBikeOptions = $canEdit ? all_bikes(true) : [];
 $editValues = $editInput ?? [
     'customer_name' => (string) $reservation['customer_name'],
     'customer_phone' => (string) ($reservation['customer_phone'] ?? ''),
@@ -293,6 +293,7 @@ $editValues = $editInput ?? [
     'end_time' => (new DateTimeImmutable((string) $reservation['end_at']))->format('H:i'),
     'rental_kind' => $rentalKind, 'status' => (string) $reservation['status'],
     'notes' => (string) ($reservation['notes'] ?? ''), 'bike_id' => (string) $reservation['bike_id'],
+    'bike_ids' => array_column($reservation['bikes'], 'id'),
     'version' => reservation_edit_version($reservation, $contract),
 ];
 
@@ -484,18 +485,18 @@ render_header(($isReplacement ? 'Vervangfiets #' : ($isTest ? 'Testreservatie #'
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <?php if ($replacementBikeOptions): ?>
-                    <div class="field field-full">
-                        <label for="edit-bike">Vervangfiets *</label>
-                        <select id="edit-bike" name="bike_id" required>
-                            <?php foreach ($replacementBikeOptions as $option):
-                                $unavailable = (int) $option['id'] !== (int) $reservation['bike_id'] && $option['status'] !== 'active';
-                            ?>
-                                <option value="<?= (int) $option['id'] ?>" <?= (int) ($editValues['bike_id'] ?? 0) === (int) $option['id'] ? 'selected' : '' ?> <?= $unavailable ? 'disabled' : '' ?>><?= e($option['code'] . ' — ' . $option['name'] . ($unavailable ? ' · niet actief' : '')) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                <?php endif; ?>
+                <fieldset class="field field-full">
+                    <legend>Fietsen in dit dossier</legend>
+                    <input type="hidden" name="edit_bikes" value="1">
+                    <p class="help">Vink fietsen aan om ze toe te voegen, of uit om ze uit deze verhuur te halen. Behoud minstens één fiets. Beschikbaarheid wordt bij opslaan gecontroleerd. De afgesproken totaalprijs blijft behouden; pas deze indien nodig apart aan.</p>
+                    <?php $selectedBikeIds = array_map('intval', is_array($editValues['bike_ids'] ?? null) ? $editValues['bike_ids'] : []);
+                    $currentBikeIds = array_map('intval', array_column($reservation['bikes'], 'id'));
+                    foreach ($replacementBikeOptions as $option):
+                        if ($option['status'] !== 'active' && !in_array((int) $option['id'], $currentBikeIds, true)) continue;
+                    ?>
+                        <label><input class="checkbox-inline" type="checkbox" name="bike_ids[]" value="<?= (int) $option['id'] ?>" <?= in_array((int) $option['id'], $selectedBikeIds, true) ? 'checked' : '' ?>> <?= e($option['code'] . ' — ' . $option['name'] . ($option['status'] !== 'active' ? ' · niet actief' : '')) ?></label>
+                    <?php endforeach; ?>
+                </fieldset>
                 <?php foreach (['start_date' => ['Startdatum', 'date'], 'start_time' => ['Startuur', 'time'], 'end_date' => ['Einddatum', 'date'], 'end_time' => ['Einduur', 'time']] as $field => [$label, $type]): ?>
                     <div class="field">
                         <label for="edit-<?= e($field) ?>"><?= e($label) ?> *</label>

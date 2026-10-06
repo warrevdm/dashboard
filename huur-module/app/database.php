@@ -29,6 +29,7 @@ function db(): PDO
     $pdo->exec('PRAGMA busy_timeout = 5000');
 
     ensure_user_role_schema($pdo);
+    apply_yana_admin_once($pdo);
     ensure_reservation_kind_schema($pdo);
     ensure_replacement_management_schema($pdo);
 
@@ -248,5 +249,41 @@ function ensure_replacement_management_schema(PDO $pdo): void
         if (!isset($columns[$column])) {
             $pdo->exec($sql);
         }
+    }
+}
+
+/** Deployment-only account migration: never overrides later manual role changes. */
+function apply_yana_admin_once(PDO $pdo): void
+{
+    if (!$pdo->query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='users'")->fetchColumn()) return;
+    $markerExists = $pdo->query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='account_role_migrations'")->fetchColumn();
+    $key = '2026-10-06-yana-admin';
+    if ($markerExists) {
+        $done = $pdo->prepare('SELECT 1 FROM account_role_migrations WHERE name = ?');
+        $done->execute([$key]);
+        if ($done->fetchColumn()) return;
+    }
+    $pdo->exec('BEGIN IMMEDIATE');
+    try {
+        $pdo->exec('CREATE TABLE IF NOT EXISTS account_role_migrations (name TEXT PRIMARY KEY, outcome TEXT NOT NULL, completed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)');
+        $done = $pdo->prepare('SELECT 1 FROM account_role_migrations WHERE name = ?');
+        $done->execute([$key]);
+        if (!$done->fetchColumn()) {
+            $find = $pdo->prepare('SELECT id, active FROM users WHERE lower(trim(email)) = ?');
+            $find->execute(['yana@aertsactionbike.cc']);
+            $matches = $find->fetchAll(PDO::FETCH_ASSOC);
+            $outcome = 'skipped: account missing, ambiguous or inactive';
+            if (count($matches) === 1 && (int) $matches[0]['active'] === 1) {
+                $update = $pdo->prepare("UPDATE users SET role = 'admin' WHERE id = ?");
+                $update->execute([$matches[0]['id']]);
+                $outcome = 'admin assigned to user ' . (int) $matches[0]['id'];
+            }
+            $record = $pdo->prepare('INSERT INTO account_role_migrations (name, outcome) VALUES (?, ?)');
+            $record->execute([$key, $outcome]);
+        }
+        $pdo->exec('COMMIT');
+    } catch (Throwable $e) {
+        $pdo->exec('ROLLBACK');
+        throw $e;
     }
 }
