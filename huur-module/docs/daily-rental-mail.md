@@ -58,3 +58,9 @@ huur-module/daily-rental-mail.php?key=JOUW_64_HEXTEKENS
 Elke 5 minuten, elk uur, elke dag, elke maand, elke weekdag (`*/5 * * * *`). Gebruik één cronjob: kies URL of CLI. HTTPS vereist, geen login nodig, ontbrekende/onjuiste sleutel geeft 403. De sleutel geeft uitsluitend toegang tot de vaste dagmail; geen preview, ontvangerwijzigingen, handmatige force-send of tijdstipoverride. Geen databaseverbinding of sessie vóór sleutelcontrole, en geen databasewerk vóór 17:00.
 
 Bewaar de sleutel niet in GitHub of screenshots. URL-crons kunnen de sleutel opnemen in hosting-toegangslogs: beperk toegang tot deze logs. Bij vermoeden van uitlekken: vervang de sleutel zowel in .env als in de cronjob. Een scheduler met headerondersteuning kan X-Cron-Key gebruiken in plaats van de querystring. HTTP 200 vóór 17:00 betekent uitsluitend dat authenticatie/tijdcontrole werken; dit bewijst nog geen mailaflevering. De eerste verzending vanaf 17:00 moet in beide mailboxen worden gecontroleerd.
+
+## Handmatig vóór 17:00 of opnieuw versturen
+
+Beheerders zien in Planning de knop **Dagmail · Nu versturen**. De bevestigingspagina noemt beide echte ontvangers. Aanvinken en verzenden verstuurt direct, onafhankelijk van DAILY_RENTAL_MAIL_ENABLED en het tijdstip. De automatische dagmail blijft apart ingepland. Gebruik dit ook om de mailinstellingen te testen, maar verwacht een echte mail naar beide ontvangers.
+
+De pagina controleert de actuele actieve adminrol, CSRF en een sessiegebonden opdracht-ID. De database registreert iedere ontvanger onder manual:<opdracht-ID>, waardoor dubbel klikken/vernieuwen dezelfde opdracht niet opnieuw verzendt. Een nieuwe bevestigingspagina bereidt expliciet een nieuwe verzending voor. Na een onzekere poging eerst de provider controleren. De cronsleutel geeft geen toegang tot deze beheerfunctie.

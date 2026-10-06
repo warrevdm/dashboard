@@ -77,10 +77,12 @@ function send_daily_rental_message(string $to, array $message): void
 }
 
 /** A persisted claim per recipient prevents overlapping cron jobs and duplicate sends. */
-function run_daily_rental_mail(PDO $pdo, DateTimeImmutable $now, callable $send): string
+function run_daily_rental_mail(PDO $pdo, DateTimeImmutable $now, callable $send, ?string $manualId = null): string
 {
     $now = $now->setTimezone(new DateTimeZone('Europe/Brussels'));
-    if ((int) $now->format('H') < 17) return 'Nog geen 17:00 in België.';
+    if ($manualId !== null && !preg_match('/\A[a-f0-9]{64}\z/', $manualId)) throw new InvalidArgumentException('Ongeldige verzendopdracht.');
+    $runKey = $manualId === null ? $now->format('Y-m-d') : 'manual:' . $manualId;
+    if ($manualId === null && (int) $now->format('H') < 17) return 'Nog geen 17:00 in België.';
     $pdo->exec("CREATE TABLE IF NOT EXISTS daily_rental_mail_runs (
         day TEXT NOT NULL, recipient TEXT NOT NULL, status TEXT NOT NULL,
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(day,recipient))");
@@ -89,10 +91,10 @@ function run_daily_rental_mail(PDO $pdo, DateTimeImmutable $now, callable $send)
     $uncertain = false;
     foreach (['werkplaats@aertsactionbike.be','marketing@aertsactionbike.be'] as $to) {
         $claim = $pdo->prepare("INSERT OR IGNORE INTO daily_rental_mail_runs(day,recipient,status) VALUES (?,?,'sending')");
-        $claim->execute([$now->format('Y-m-d'),$to]);
+        $claim->execute([$runKey,$to]);
         if ($claim->rowCount() === 0) {
             $check = $pdo->prepare('SELECT status FROM daily_rental_mail_runs WHERE day=? AND recipient=?');
-            $check->execute([$now->format('Y-m-d'),$to]);
+            $check->execute([$runKey,$to]);
             $uncertain = $uncertain || $check->fetchColumn() !== 'sent';
             continue;
         }
@@ -107,7 +109,7 @@ function run_daily_rental_mail(PDO $pdo, DateTimeImmutable $now, callable $send)
             error_log('Dagmail niet bevestigd voor ' . $to . '; controleer mailprovider en daily_rental_mail_runs.');
         }
         $update = $pdo->prepare('UPDATE daily_rental_mail_runs SET status=?, updated_at=CURRENT_TIMESTAMP WHERE day=? AND recipient=?');
-        $update->execute([$status,$now->format('Y-m-d'),$to]);
+        $update->execute([$status,$runKey,$to]);
     }
     if ($uncertain) throw new RuntimeException('Een verzending is niet bevestigd. Controleer de mailprovider vóór opnieuw verzenden; automatische herhaling is geblokkeerd.');
     return $sent . ' dagmails verzonden; overige ontvangers waren al verwerkt.';
