@@ -15,7 +15,7 @@ let php;
     emscriptenOptions: {processId: process.pid},
   }));
   php.mkdirTree('/rental-fixture/app');
-  for (const name of ['database.php', 'env.php', 'security.php', 'repositories.php', 'contracts_v2.php', 'reservation_edit.php']) {
+  for (const name of ['pricing.php', 'database.php', 'env.php', 'security.php', 'repositories.php', 'contracts_v2.php', 'reservation_edit.php']) {
     php.writeFile(`/rental-fixture/app/${name}`, fs.readFileSync(path.join(root, 'app', name)));
   }
   php.writeFile('/rental-fixture/schema.sql', fs.readFileSync(path.join(root, 'database/schema.sql')));

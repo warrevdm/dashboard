@@ -32,7 +32,7 @@ if ((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $editInput = $_POST;
         try {
             update_reservation_details($id, $_POST);
-            flash('success', 'Reservatie en dossier bijgewerkt. De prijs en betalingen zijn behouden.');
+            flash('success', 'Reservatie en dossier bijgewerkt. Bij een gewijzigd fietspakket is de eindprijs herberekend. Bestaande betalingen zijn behouden.');
             redirect('reservation.php?id=' . $id . '#dossier-bewerken');
         } catch (DomainException $e) {
             $editError = $e->getMessage();
@@ -451,7 +451,7 @@ render_header(($isReplacement ? 'Vervangfiets #' : ($isTest ? 'Testreservatie #'
 
     <?php if ($canEdit): ?>
     <link rel="stylesheet" href="assets/dossier-bikes.css?v=1">
-    <script src="assets/dossier-bikes.js?v=1" defer></script>
+    <script src="assets/dossier-bikes.js?v=2" defer></script>
     <div class="card col-12" id="dossier-bewerken">
         <div class="actions actions-between">
             <div>
@@ -487,10 +487,10 @@ render_header(($isReplacement ? 'Vervangfiets #' : ($isTest ? 'Testreservatie #'
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <fieldset class="field field-full dossier-bikes" data-dossier-bikes>
+                <fieldset class="field field-full dossier-bikes" data-dossier-bikes data-original-total="<?= e((string) $reservation['total_price']) ?>">
                     <legend>Stel het fietspakket samen</legend>
                     <input type="hidden" name="edit_bikes" value="1">
-                    <p class="help">Vink fietsen aan om ze toe te voegen, of uit om ze uit deze verhuur te halen. Behoud minstens één fiets. Beschikbaarheid wordt bij opslaan gecontroleerd. De afgesproken totaalprijs blijft behouden; pas deze indien nodig apart aan.</p>
+                    <p class="help">Vink fietsen aan om ze toe te voegen, of uit om ze uit deze verhuur te halen. Behoud minstens één fiets. Beschikbaarheid wordt bij opslaan gecontroleerd. Bij toevoegen of verwijderen wordt het volledige pakket opnieuw berekend voor de gekozen periode. Een eerder handmatig afgesproken prijs of korting wordt daarbij vervangen.</p>
                     <div class="dossier-bikes-toolbar">
                         <label class="dossier-bikes-search">Zoek een fiets<input type="search" placeholder="Naam, fietsnummer of categorie…" data-bike-search></label>
                         <label class="dossier-bikes-filter"><input type="checkbox" data-selected-only> Alleen geselecteerde fietsen</label>
@@ -501,10 +501,13 @@ render_header(($isReplacement ? 'Vervangfiets #' : ($isTest ? 'Testreservatie #'
                     $currentBikeIds = array_map('intval', array_column($reservation['bikes'], 'id'));
                     foreach ($replacementBikeOptions as $option):
                         if ($option['status'] !== 'active' && !in_array((int) $option['id'], $currentBikeIds, true)) continue;
+                        $priceRule = rental_pricing_rule($option);
+                        $oldRates = array_column($reservation['bikes'], 'reserved_daily_rate', 'id');
+                        $dayRate = $priceRule['day_rate'] ?? $oldRates[$option['id']] ?? $option['daily_rate'];
                         $selected = in_array((int) $option['id'], $selectedBikeIds, true);
                         $inDossier = in_array((int) $option['id'], $currentBikeIds, true);
                     ?>
-                        <label class="dossier-bike-card" data-bike-card data-search="<?= e($option['code'] . ' ' . $option['name'] . ' ' . $option['category']) ?>">
+                        <label class="dossier-bike-card" data-bike-card data-original="<?= $inDossier ? '1' : '0' ?>" data-day="<?= e((string) $dayRate) ?>" data-week="<?= e((string) ($priceRule['week_rate'] ?? '')) ?>" data-search="<?= e($option['code'] . ' ' . $option['name'] . ' ' . $option['category']) ?>">
                             <input class="dossier-bike-check" type="checkbox" name="bike_ids[]" value="<?= (int) $option['id'] ?>" <?= $selected ? 'checked' : '' ?>>
                             <span class="dossier-bike-image">
                                 <?php if (!empty($option['photo_stored_name'])): ?>
@@ -522,6 +525,9 @@ render_header(($isReplacement ? 'Vervangfiets #' : ($isTest ? 'Testreservatie #'
                     <?php endforeach; ?>
                     </div>
                     <p data-bike-empty hidden>Geen fietsen gevonden. Pas je zoekopdracht of filter aan.</p>
+                    <div class="alert alert-warning" data-package-price-notice hidden aria-live="polite"></div>
+                    <input type="hidden" name="expected_package_price" data-package-price>
+                    <label data-package-price-confirm hidden><input type="checkbox" class="checkbox-inline" name="confirm_package_price" value="1"> Ik bevestig de nieuwe eindprijs.</label>
                     <p class="dossier-bikes-note">Je selectie wordt pas verwerkt wanneer je het dossier opslaat.</p>
                 </fieldset>
                 <?php foreach (['start_date' => ['Startdatum', 'date'], 'start_time' => ['Startuur', 'time'], 'end_date' => ['Einddatum', 'date'], 'end_time' => ['Einduur', 'time']] as $field => [$label, $type]): ?>

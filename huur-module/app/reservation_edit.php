@@ -1,6 +1,22 @@
 <?php
 
 declare(strict_types=1);
+require_once __DIR__ . '/pricing.php';
+
+function reservation_package_price(array $bikes, DateTimeImmutable $start, DateTimeImmutable $end, string $kind): float
+{
+    if ($kind === 'replacement') return 0.0;
+    $days = rental_billable_days($start, $end);
+    $total = 0.0;
+    foreach ($bikes as $bike) {
+        $rule = rental_pricing_rule($bike);
+        $rate = (float) ($bike['reserved_daily_rate'] ?? $bike['daily_rate'] ?? 0);
+        if ($rule === null && $rate <= 0) throw new DomainException('Geen geldig huurtarief voor ' . $bike['name'] . '. Stel eerst een dagtarief in bij Fietsen.');
+        $total += $rule ? rental_price_for_days($rule['day_rate'], $rule['week_rate'], $days) : round($rate * $days, 2);
+    }
+    return round($total, 2);
+}
+
 
 /** Detect changes made since the employee opened the dossier, including its contract. */
 function reservation_edit_version(array $reservation, ?array $contract): string
@@ -105,6 +121,20 @@ function update_reservation_details(int $id, array $input): void
             }
         }
 
+        $newTotal = (float) $reservation['total_price'];
+        if ($bikeChanged && array_key_exists('edit_bikes', $input)) {
+            $newTotal = reservation_package_price($bikes, $start, $end, $kind);
+            if (abs($newTotal - (float) $reservation['total_price']) >= 0.005) {
+                if (!empty($contract['signed_at'])) throw new DomainException('De eindprijs verandert, maar het contract is al ondertekend. De fietswijziging kan daarom niet worden opgeslagen.');
+                $paid = reservation_payment_summary($id, (float) $reservation['total_price']);
+                if ($newTotal + 0.009 < (float) $paid['paid']) throw new DomainException('De nieuwe eindprijs is lager dan het reeds betaalde bedrag. De fietswijziging is niet opgeslagen.');
+                $expected = $input['expected_package_price'] ?? null;
+                if (($input['confirm_package_price'] ?? '') !== '1' || !is_scalar($expected) || !is_numeric($expected) || abs((float) $expected - $newTotal) >= 0.005) {
+                    throw new DomainException('Bevestig de nieuwe eindprijs van € ' . number_format($newTotal, 2, ',', '.') . ' voordat je de fietsen wijzigt.');
+                }
+            }
+        }
+
         $customerChanges = [];
         foreach (['name' => $name, 'email' => $email, 'phone' => $phone, 'address' => $address] as $field => $value) {
             if ((string) ($reservation['customer_' . $field] ?? '') !== $value) {
@@ -124,7 +154,7 @@ function update_reservation_details(int $id, array $input): void
         $identityChanged = in_array('name', $customerChanges, true);
         $stmt = $pdo->prepare(
             'UPDATE reservations SET start_at = :start_at, end_at = :end_at, rental_kind = :kind,
-                status = :status, notes = :notes, bike_id = :bike_id,
+                status = :status, notes = :notes, bike_id = :bike_id, total_price = :total_price,
                 closed_at = :closed_at, closed_by = :closed_by,
                 eid_physical_checked = :physical, eid_photo_match = :photo,
                 eid_checked_at = :checked_at, eid_checked_by = :checked_by,
@@ -132,6 +162,7 @@ function update_reservation_details(int $id, array $input): void
         );
         $stmt->execute([
             ':start_at' => $start->format('Y-m-d H:i:s'), ':end_at' => $end->format('Y-m-d H:i:s'),
+            ':total_price' => $newTotal,
             ':kind' => $kind, ':status' => $status, ':notes' => $notes !== '' ? $notes : null,
             ':bike_id' => $bikeChanged ? (int) $bikes[0]['id'] : (int) $reservation['bike_id'],
             ':closed_at' => $status === 'returned' ? ($reservation['closed_at'] ?: gmdate('Y-m-d H:i:s')) : null,
@@ -164,6 +195,7 @@ function update_reservation_details(int $id, array $input): void
             'old_end_at' => $reservation['end_at'], 'new_end_at' => $end->format('Y-m-d H:i:s'),
             'old_rental_kind' => $reservation['rental_kind'], 'new_rental_kind' => $kind,
             'old_status' => $reservation['status'], 'new_status' => $status,
+            'old_total_price' => (float) $reservation['total_price'], 'new_total_price' => $newTotal,
             'old_bike_ids' => $currentBikeIds, 'new_bike_ids' => array_column($bikes, 'id'),
             'customer_fields_changed' => $customerChanges, 'notes_changed' => (string) $reservation['notes'] !== $notes,
             'identity_check_reset' => $identityChanged, 'unsigned_contract_reset' => (bool) $resetContract,

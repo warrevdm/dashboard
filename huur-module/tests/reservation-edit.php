@@ -122,11 +122,11 @@ $id = fixture();
 $before = find_reservation($id);
 $stale = input($id, ['edit_bikes' => '1', 'bike_ids' => ['1']]);
 contract($pdo, $id);
-update_reservation_details($id, input($id, ['edit_bikes' => '1', 'bike_ids' => ['2', '3', '3']]));
+update_reservation_details($id, input($id, ['edit_bikes' => '1', 'bike_ids' => ['2', '3', '3'], 'confirm_package_price' => '1', 'expected_package_price' => '115.00']));
 $changed = find_reservation($id);
 check(array_column($changed['bikes'], 'id') === [2, 3], 'Package removes, adds and deduplicates bikes');
 check((int) $changed['bike_id'] === 2, 'Primary bike remains a package member');
-check((float) $changed['total_price'] === (float) $before['total_price'], 'Agreed total is preserved');
+check((float) $changed['total_price'] === 115.0, 'Package total recalculated');
 check((float) $changed['bikes'][0]['reserved_daily_rate'] === 12.5 && (float) $changed['bikes'][1]['reserved_daily_rate'] === 45.0, 'Retained rate preserved and added bike uses its rate');
 check(!find_contract_by_reservation($id), 'Package change invalidates unsigned contract');
 check(!reservation_conflicts(1, $changed['start_at'], $changed['end_at']), 'Removed bike released in planning');
@@ -143,8 +143,21 @@ fails(fn () => update_reservation_details($id, input($id, ['edit_bikes' => '1', 
 check(snapshot($pdo) === $before, 'Conflict preserves original package');
 contract($pdo, $id, true);
 $beforeContract = find_contract_by_reservation($id);
-update_reservation_details($id, input($id, ['edit_bikes' => '1', 'bike_ids' => ['2']]));
+fails(fn () => update_reservation_details($id, input($id, ['edit_bikes' => '1', 'bike_ids' => ['2']])), 'ondertekend', 'Signed price protected');
 check(find_contract_by_reservation($id) === $beforeContract, 'Signed snapshot preserved after package removal');
+
+$id = fixture();
+$before = snapshot($pdo);
+fails(fn () => update_reservation_details($id, input($id, ['edit_bikes'=>'1','bike_ids'=>['1','2','3']])), 'Bevestig', 'Price change needs confirmation');
+check(snapshot($pdo) === $before, 'Unconfirmed price change leaves all data intact');
+fails(fn () => update_reservation_details($id, input($id, ['edit_bikes'=>'1','bike_ids'=>['1','2','3'],'confirm_package_price'=>'1','expected_package_price'=>'1'])), 'Bevestig', 'Tampered quote rejected');
+update_reservation_details($id, input($id, ['edit_bikes'=>'1','bike_ids'=>['1','2','3'],'confirm_package_price'=>'1','expected_package_price'=>'138']));
+check((float) find_reservation($id)['total_price'] === 138.0, 'Adding bike increases price');
+update_reservation_details($id, input($id, ['edit_bikes'=>'1','bike_ids'=>['1','2'],'confirm_package_price'=>'1','expected_package_price'=>'48']));
+check((float) find_reservation($id)['total_price'] === 48.0, 'Removing bike reduces price');
+fails(fn () => update_reservation_details($id, input($id, ['edit_bikes'=>'1','bike_ids'=>['1'],'confirm_package_price'=>'1','expected_package_price'=>'23'])), 'betaalde', 'Cannot reduce below payments');
+check(reservation_package_price([['category'=>'E-bike']], new DateTimeImmutable('2026-10-01'), new DateTimeImmutable('2026-10-08'), 'rental') === 150.0, 'Week rate applies');
+check(reservation_package_price([['category'=>'E-bike']], new DateTimeImmutable('2026-10-01'), new DateTimeImmutable('2026-10-08'), 'replacement') === 0.0, 'Replacement remains free');
 
 $migrationDb = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 $migrationDb->exec($schema);
