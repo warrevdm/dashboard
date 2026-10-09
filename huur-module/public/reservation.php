@@ -7,6 +7,7 @@ require_auth();
 require_once __DIR__ . '/../app/overdue_rentals.php';
 require_once __DIR__ . '/../app/reservation_edit.php';
 require_once __DIR__ . '/../app/reservation_documents.php';
+require_once __DIR__ . '/../app/bike_returns.php';
 
 $id = (int) ($_GET['id'] ?? $_POST['id'] ?? 0);
 $reservation = find_reservation($id);
@@ -29,6 +30,15 @@ if ((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
     verify_csrf();
     $action = (string) ($_POST['action'] ?? '');
+
+    if ($action === 'return-bike') {
+        try {
+            return_reservation_bike($id, (int) ($_POST['bike_id'] ?? 0));
+            flash('success', 'Retour geregistreerd. De fiets is weer beschikbaar voor nieuwe reservaties, tenzij deze in onderhoud of inactief is.');
+        } catch (DomainException $e) { flash('error', $e->getMessage()); }
+        catch (Throwable $e) { error_log('Retour fiets: ' . $e->getMessage()); flash('error', 'Retour kon niet worden opgeslagen. Probeer opnieuw.'); }
+        redirect('reservation.php?id=' . $id . '#fietsretours');
+    }
 
     if ($action === 'upload-identity-document') {
         try {
@@ -351,6 +361,7 @@ render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
             </div>
         </div>
 
+        <p id="fietsretours" class="muted">Registreer de retour per fiets. De afgesproken huurprijs blijft behouden.</p>
         <div class="reservation-bike-list">
             <?php foreach ($reservation['bikes'] as $bike): ?>
                 <article class="reservation-bike-item">
@@ -364,6 +375,20 @@ render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
                         <div class="muted"><?= e((string) $bike['category']) ?> · maat <?= e((string) ($bike['frame_size'] ?: '—')) ?></div>
                         <div class="muted">Framenummer: <?= e((string) ($bike['frame_number'] ?: '—')) ?></div>
                     </div>
+                    <?php if (!empty($bike['returned_at'])): ?>
+                        <span class="badge status-returned">Teruggebracht · <?= e((new DateTimeImmutable($bike['returned_at']))->format('d/m/Y H:i')) ?></span>
+                    <?php elseif ($reservation['status'] === 'picked_up' && !$isFinanceView): ?>
+                        <form method="post" class="stack">
+                            <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
+                            <input type="hidden" name="action" value="return-bike">
+                            <input type="hidden" name="id" value="<?= $id ?>">
+                            <input type="hidden" name="bike_id" value="<?= (int)$bike['id'] ?>">
+                            <label><input type="checkbox" required> Deze fiets is terug in de winkel</label>
+                            <button class="button button-secondary" type="submit">Retour registreren</button>
+                        </form>
+                    <?php elseif ($reservation['status'] === 'returned'): ?>
+                        <span class="badge status-returned">Teruggebracht</span>
+                    <?php endif; ?>
                     <span class="badge badge-<?= e((string) $bike['status']) ?>"><?= e(bike_status_label((string) $bike['status'])) ?></span>
                 </article>
             <?php endforeach; ?>

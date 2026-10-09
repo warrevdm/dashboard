@@ -87,7 +87,7 @@ if ($focus !== '') {
         $bikeStmt = db()->prepare(
             "SELECT DISTINCT bike_id
              FROM reservation_bikes
-             WHERE reservation_id IN ({$placeholders})"
+             WHERE returned_at IS NULL AND reservation_id IN ({$placeholders})"
         );
         $bikeStmt->execute($focusReservationIds);
         $focusBikeIds = array_map('intval', $bikeStmt->fetchAll(PDO::FETCH_COLUMN));
@@ -120,7 +120,7 @@ $events = reservations_for_range($start, $end);
 if ($focus !== '') {
     $events = array_values(array_filter(
         $events,
-        static fn (array $event): bool => in_array((int) $event['id'], $focusReservationIds, true)
+        static fn (array $event): bool => $event['status'] !== 'returned' && in_array((int) $event['id'], $focusReservationIds, true)
     ));
 }
 $overdue = overdue_rentals(db(), new DateTimeImmutable());

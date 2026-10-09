@@ -9,9 +9,9 @@ function workshop_board_data(PDO $pdo, DateTimeImmutable $now): array
         c.name AS customer_name, b.code, b.name AS bike_name
         FROM reservations r JOIN customers c ON c.id=r.customer_id
         JOIN reservation_bikes rb ON rb.reservation_id=r.id JOIN bikes b ON b.id=rb.bike_id
-        WHERE (r.start_at >= :today AND r.start_at < :tomorrow AND r.status IN ('reserved','confirmed'))
+        WHERE rb.returned_at IS NULL AND ((r.start_at >= :today AND r.start_at < :tomorrow AND r.status IN ('reserved','confirmed'))
             OR (r.end_at >= :today AND r.end_at < :tomorrow AND r.status IN ('confirmed','picked_up'))
-            OR (r.status='picked_up' AND r.end_at < :now)
+            OR (r.status='picked_up' AND r.end_at < :now))
         ORDER BY r.start_at, r.id, b.code");
     $stmt->execute([':today'=>$now->format('Y-m-d 00:00:00'), ':tomorrow'=>$now->modify('+1 day')->format('Y-m-d 00:00:00'), ':now'=>$now->format('Y-m-d H:i:s')]);
     $groups = [];

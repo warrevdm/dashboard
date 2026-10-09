@@ -32,6 +32,7 @@ function db(): PDO
     apply_yana_admin_once($pdo);
     ensure_reservation_kind_schema($pdo);
     ensure_replacement_management_schema($pdo);
+    ensure_bike_return_schema($pdo);
 
     return $pdo;
 }
@@ -286,4 +287,17 @@ function apply_yana_admin_once(PDO $pdo): void
         $pdo->exec('ROLLBACK');
         throw $e;
     }
+}
+
+function ensure_bike_return_schema(PDO $pdo): void
+{
+    $columns = $pdo->query('PRAGMA table_info(reservation_bikes)')->fetchAll(PDO::FETCH_COLUMN, 1);
+    if (!$columns || (in_array('returned_at', $columns, true) && in_array('returned_by', $columns, true))) return;
+    $pdo->exec('BEGIN IMMEDIATE');
+    try {
+        $columns = $pdo->query('PRAGMA table_info(reservation_bikes)')->fetchAll(PDO::FETCH_COLUMN, 1);
+        if (!in_array('returned_at', $columns, true)) $pdo->exec('ALTER TABLE reservation_bikes ADD COLUMN returned_at TEXT');
+        if (!in_array('returned_by', $columns, true)) $pdo->exec('ALTER TABLE reservation_bikes ADD COLUMN returned_by INTEGER');
+        $pdo->exec('COMMIT');
+    } catch (Throwable $e) { $pdo->exec('ROLLBACK'); throw $e; }
 }

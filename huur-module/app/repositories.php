@@ -41,7 +41,7 @@ function find_bike(int $id): ?array
 function reservation_bikes(int $reservationId): array
 {
     $stmt = db()->prepare(
-        'SELECT b.*, rb.daily_rate AS reserved_daily_rate
+        'SELECT b.*, rb.daily_rate AS reserved_daily_rate, rb.returned_at, rb.returned_by
          FROM reservation_bikes rb
          JOIN bikes b ON b.id = rb.bike_id
          WHERE rb.reservation_id = :reservation_id
@@ -54,7 +54,8 @@ function reservation_bikes(int $reservationId): array
 function reservations_for_range(DateTimeImmutable $start, DateTimeImmutable $end): array
 {
     $stmt = db()->prepare(
-        "SELECT r.*, rb.bike_id, b.name AS bike_name, b.code AS bike_code,
+        "SELECT r.*, COALESCE(rb.returned_at, r.end_at) AS end_at,
+                CASE WHEN rb.returned_at IS NOT NULL THEN 'returned' ELSE r.status END AS status, rb.bike_id, b.name AS bike_name, b.code AS bike_code,
                 b.status AS bike_status, c.name AS customer_name, d.id AS document_id,
                 rc.signed_at AS contract_signed_at,
                 COALESCE((SELECT SUM(p.amount) FROM payment_logs p WHERE p.reservation_id = r.id), 0) AS paid_amount
@@ -65,7 +66,7 @@ function reservations_for_range(DateTimeImmutable $start, DateTimeImmutable $end
          LEFT JOIN identity_documents d ON d.id = r.identity_document_id AND d.deleted_at IS NULL
          LEFT JOIN rental_contracts rc ON rc.reservation_id = r.id
          WHERE r.start_at < :range_end
-           AND r.end_at > :range_start
+           AND COALESCE(rb.returned_at, r.end_at) > :range_start
            AND r.status != 'cancelled'
          ORDER BY rb.bike_id, r.start_at"
     );
@@ -135,7 +136,7 @@ function reservation_conflicts(int $bikeId, string $startAt, string $endAt, ?int
             WHERE rb.bike_id = :bike_id
               AND r.status NOT IN ('cancelled', 'returned')
               AND r.start_at < :end_at
-              AND r.end_at > :start_at";
+              AND COALESCE(rb.returned_at, r.end_at) > :start_at";
     $params = [
         ':bike_id' => $bikeId,
         ':start_at' => $startAt,
@@ -160,7 +161,7 @@ function bike_availability(string $startAt, string $endAt, ?int $excludeReservat
                 JOIN reservations r ON r.id = rb.reservation_id
                 WHERE rb.bike_id = b.id
                   AND r.status NOT IN ('cancelled', 'returned')
-                  AND r.start_at < :end_at AND r.end_at > :start_at
+                  AND r.start_at < :end_at AND COALESCE(rb.returned_at, r.end_at) > :start_at
                   {$excludeSql}) AS has_conflict
         FROM bikes b ORDER BY b.category, b.name, b.code");
     $params = [':start_at' => $startAt, ':end_at' => $endAt];

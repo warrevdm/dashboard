@@ -12,9 +12,9 @@ const {loadNodeRuntime} = req('@php-wasm/node');
  const r = await php.run({code:`<?php
  require '/daily.php';
  $p=new PDO('sqlite::memory:',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
- $p->exec("CREATE TABLE reservations(id INTEGER,customer_id INTEGER,start_at TEXT,end_at TEXT,rental_kind TEXT,status TEXT); CREATE TABLE customers(id INTEGER,name TEXT); CREATE TABLE bikes(id INTEGER,code TEXT,name TEXT); CREATE TABLE reservation_bikes(reservation_id INTEGER,bike_id INTEGER);
+ $p->exec("CREATE TABLE reservations(id INTEGER,customer_id INTEGER,start_at TEXT,end_at TEXT,rental_kind TEXT,status TEXT); CREATE TABLE customers(id INTEGER,name TEXT); CREATE TABLE bikes(id INTEGER,code TEXT,name TEXT); CREATE TABLE reservation_bikes(reservation_id INTEGER,bike_id INTEGER,returned_at TEXT);
  INSERT INTO customers VALUES(1,'<Test & klant>'); INSERT INTO bikes VALUES(1,'A','Bike A'),(2,'B','Bike B');
- INSERT INTO reservations VALUES(1,1,'2026-10-05 10:00:00','2026-10-06 16:00:00','replacement','picked_up'),(2,1,'2026-10-05 10:00:00','2026-10-06 16:00:00','rental','returned'); INSERT INTO reservation_bikes VALUES(1,1),(1,2),(2,1);");
+ INSERT INTO reservations VALUES(1,1,'2026-10-05 10:00:00','2026-10-06 16:00:00','replacement','picked_up'),(2,1,'2026-10-05 10:00:00','2026-10-06 16:00:00','rental','returned'); INSERT INTO reservation_bikes(reservation_id,bike_id) VALUES(1,1),(1,2),(2,1);");
  $checks=0; function ok($x){global $checks;if(!$x)throw new Exception('Check '.($checks+1).' failed');$checks++;}
  $at=fn($s)=>new DateTimeImmutable($s,new DateTimeZone('UTC'));
  $sent=[];$sender=function($to,$m)use(&$sent){$sent[]=$to;};

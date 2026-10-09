@@ -72,6 +72,11 @@ function update_reservation_details(int $id, array $input): void
             throw new DomainException('Dit dossier is intussen gewijzigd. Herlaad de pagina en controleer de nieuwste gegevens voordat je opnieuw opslaat.');
         }
 
+        $returnedBikes = array_filter($reservation['bikes'], static fn(array $b): bool => !empty($b['returned_at']));
+        if ($returnedBikes && $status !== $reservation['status'] && $status !== 'returned') {
+            throw new DomainException('Een dossier met geregistreerde fietsretours kan niet opnieuw geopend of teruggezet worden. Maak voor een nieuwe uitgifte een nieuwe reservatie.');
+        }
+        $returnById = array_column($returnedBikes, null, 'id');
         $currentBikeIds = array_map(static fn (array $bike): int => (int) $bike['id'], $reservation['bikes']);
         $bikes = $reservation['bikes'];
         $bikeChanged = false;
@@ -94,6 +99,8 @@ function update_reservation_details(int $id, array $input): void
                 if (!$bike || ($bike['status'] !== 'active' && !in_array($bikeId, $currentBikeIds, true))) {
                     throw new DomainException('Kies een bestaande, actieve fiets.');
                 }
+                $bike['returned_at'] = $returnById[$bikeId]['returned_at'] ?? null;
+                $bike['returned_by'] = $returnById[$bikeId]['returned_by'] ?? null;
                 $bike['reserved_daily_rate'] = $oldRates[$bikeId] ?? $bike['daily_rate'];
                 $bikes[] = $bike;
             }
@@ -113,10 +120,13 @@ function update_reservation_details(int $id, array $input): void
         if (!$bikes) {
             throw new DomainException('Er is geen fiets aan dit dossier gekoppeld.');
         }
+        if (array_diff(array_keys($returnById), array_column($bikes, 'id'))) {
+            throw new DomainException('Teruggebrachte fietsen blijven als historiek in dit dossier en kunnen niet worden verwijderd.');
+        }
         foreach ($bikes as $bike) {
             // Returned dossiers no longer occupy a bike. Their original planned
             // period may overlap a later booking after an early return.
-            if ($status !== 'returned' && reservation_conflicts((int) $bike['id'], $start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s'), $id)) {
+            if (empty($bike['returned_at']) && $status !== 'returned' && reservation_conflicts((int) $bike['id'], $start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s'), $id)) {
                 throw new DomainException('De periode overlapt met een andere reservatie voor ' . $bike['code'] . ' — ' . $bike['name'] . '. Kies een andere periode.');
             }
         }
@@ -176,12 +186,16 @@ function update_reservation_details(int $id, array $input): void
         if ($bikeChanged) {
             $stmt = $pdo->prepare('DELETE FROM reservation_bikes WHERE reservation_id = :id');
             $stmt->execute([':id' => $id]);
-            $stmt = $pdo->prepare('INSERT INTO reservation_bikes (reservation_id, bike_id, daily_rate) VALUES (:id, :bike, :rate)');
+            $stmt = $pdo->prepare('INSERT INTO reservation_bikes (reservation_id, bike_id, daily_rate, returned_at, returned_by) VALUES (:id, :bike, :rate, :returned_at, :returned_by)');
             foreach ($bikes as $bike) {
-                $stmt->execute([':id' => $id, ':bike' => $bike['id'], ':rate' => $bike['reserved_daily_rate'] ?? ($reservation['bikes'][0]['reserved_daily_rate'] ?? 0)]);
+                $stmt->execute([':id' => $id, ':bike' => $bike['id'], ':returned_at' => $bike['returned_at'] ?? null, ':returned_by' => $bike['returned_by'] ?? null, ':rate' => $bike['reserved_daily_rate'] ?? ($reservation['bikes'][0]['reserved_daily_rate'] ?? 0)]);
             }
         }
 
+        if ($status === 'returned' && $returnedBikes) {
+            $stmt = $pdo->prepare('UPDATE reservation_bikes SET returned_at=COALESCE(returned_at, ?), returned_by=COALESCE(returned_by, ?) WHERE reservation_id=?');
+            $stmt->execute([(new DateTimeImmutable('now', new DateTimeZone('Europe/Brussels')))->format('Y-m-d H:i:s'), current_user()['id'], $id]);
+        }
         $contractChanged = $customerChanges || $bikeChanged || $kind !== $reservation['rental_kind']
             || $start->format('Y-m-d H:i:s') !== $reservation['start_at'] || $end->format('Y-m-d H:i:s') !== $reservation['end_at'];
         $resetContract = $contract && empty($contract['signed_at']) && $contractChanged;

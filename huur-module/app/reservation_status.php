@@ -11,18 +11,27 @@ function handle_reservation_status_request(): never
         exit('Methode niet toegestaan.');
     }
 
+    if (!in_array(current_user()['role'] ?? '', ['admin','staff'], true)) { http_response_code(403); exit('Geen toegang.'); }
     verify_csrf();
 
     $id = (int) ($_GET['id'] ?? 0);
     $status = (string) ($_POST['status'] ?? '');
     $allowed = ['reserved', 'confirmed', 'picked_up', 'returned', 'cancelled'];
+    db()->beginTransaction();
     $reservation = find_reservation($id);
 
     if (!$reservation || !in_array($status, $allowed, true)) {
+        db()->rollBack();
         flash('error', 'Ongeldige status.');
         redirect('planning.php');
     }
 
+    $hasReturns = (bool) array_filter($reservation['bikes'], static fn(array $b): bool => !empty($b['returned_at']));
+    if ($hasReturns && $status !== $reservation['status'] && !in_array($status, ['returned','cancelled'], true)) {
+        db()->rollBack();
+        flash('error', 'Een dossier met fietsretours kan niet opnieuw geopend of teruggezet worden. Maak een nieuwe reservatie voor een nieuwe uitgifte.');
+        redirect('reservation.php?id=' . $id);
+    }
     $previousStatus = (string) $reservation['status'];
     $closingStatuses = ['returned', 'cancelled'];
     $isClosing = in_array($status, $closingStatuses, true);
@@ -58,12 +67,18 @@ function handle_reservation_status_request(): never
         ]);
     }
 
-    audit('status_update', 'reservation', $id, [
+    if ($status === 'returned' && $hasReturns) {
+        $stmt = db()->prepare('UPDATE reservation_bikes SET returned_at=COALESCE(returned_at, ?), returned_by=COALESCE(returned_by, ?) WHERE reservation_id=?');
+        $stmt->execute([(new DateTimeImmutable('now', new DateTimeZone('Europe/Brussels')))->format('Y-m-d H:i:s'), $userId, $id]);
+    }
+    audit('status_update' , 'reservation', $id, [
         'from_status' => $previousStatus,
         'to_status' => $status,
         'closed_now' => $isClosing && !$wasClosed,
         'changed_by' => $userId,
     ]);
+
+    db()->commit();
 
     if ($isClosing && !$wasClosed) {
         flash('success', 'Huur afgesloten en voorzien van naam-, datum- en tijdstempel.');

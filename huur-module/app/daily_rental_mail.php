@@ -9,7 +9,7 @@ function daily_rental_message(PDO $pdo, DateTimeImmutable $now): array
         b.code, b.name AS bike_name
         FROM reservations r JOIN customers c ON c.id=r.customer_id
         JOIN reservation_bikes rb ON rb.reservation_id=r.id JOIN bikes b ON b.id=rb.bike_id
-        WHERE r.status='picked_up' ORDER BY r.end_at, r.id, b.code")->fetchAll(PDO::FETCH_ASSOC);
+        WHERE rb.returned_at IS NULL AND r.status='picked_up' ORDER BY r.end_at, r.id, b.code")->fetchAll(PDO::FETCH_ASSOC);
     $groups = [];
     foreach ($rows as $row) {
         $id = (int) $row['id'];

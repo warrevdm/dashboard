@@ -15,11 +15,11 @@ function overdue_rentals(PDO $pdo, DateTimeImmutable $now, ?int $reservationId =
         JOIN bikes b ON b.id = rb.bike_id
         LEFT JOIN reservations next ON next.id = (
             SELECT n.id FROM reservation_bikes nb JOIN reservations n ON n.id = nb.reservation_id
-            WHERE nb.bike_id = rb.bike_id AND n.id != r.id
+            WHERE nb.returned_at IS NULL AND nb.bike_id = rb.bike_id AND n.id != r.id
                 AND n.status IN ('reserved', 'confirmed') AND n.end_at > :now
             ORDER BY n.start_at, n.id LIMIT 1
         )
-        WHERE r.status = 'picked_up' AND r.end_at < :now"
+        WHERE rb.returned_at IS NULL AND r.status = 'picked_up' AND r.end_at < :now"
         . ($reservationId !== null ? ' AND r.id = :id' : '') . ' ORDER BY r.end_at, r.id, b.code');
     $params = [':now' => $localNow];
     if ($reservationId !== null) $params[':id'] = $reservationId;
