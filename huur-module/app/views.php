@@ -23,6 +23,7 @@ function render_header(string $title, bool $showNav = true, string $assetProfile
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title><?= e($title) ?> · <?= e($appName) ?></title>
+        <link rel="stylesheet" href="assets/tablet-contracts.css?v=<?= e((string) @filemtime(ROOT_PATH . '/public/assets/tablet-contracts.css')) ?>">
         <link rel="icon" href="assets/aerts-action-bike-logo.svg" type="image/svg+xml">
         <link rel="stylesheet" href="assets/styles.css?v=<?= e($stylesVersion) ?>">
         <link rel="stylesheet" href="assets/planning-status.css?v=<?= e($planningStatusVersion) ?>">
@@ -49,6 +50,7 @@ function render_header(string $title, bool $showNav = true, string $assetProfile
                 <a href="/home/">Dashboard</a>
                 <?php if (!is_finance()): ?>
                     <a href="planning.php">Planning</a>
+                    <a href="contracts.php">Ondertekenen</a>
                     <a href="reservation-new.php">Nieuwe verhuur</a>
                     <?php if (can_use_quick_replacement()): ?>
                         <a href="quick-replacement.php">Snelle vervangfiets</a>

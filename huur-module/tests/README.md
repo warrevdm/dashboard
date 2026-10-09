@@ -32,3 +32,8 @@ speltestdatabase. Ze controleren accountkoppeling, CSRF, eigenaarschap van pogin
 de daglimiet, verlopen rondes, scoreberekening, afgeschermde Galgje-antwoorden,
 dagzeges en overeenstemming tussen de PHP- en JavaScript-versies van Snake en
 Tetris, inclusief het vrijspelen van rijen.
+
+### Interne ondertekenpagina
+`node --experimental-wasm-jspi huur-module/tests/tablet-contracts.cjs` (vanaf repositoryroot).
+Test met een tijdelijke PHP/Wasm-database: rechten, zoeken, statusfilters, CSRF,
+gewijzigde contractinhoud, ondertekening en behoud van het ondertekende document.
