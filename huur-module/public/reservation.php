@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../app/bootstrap.php';
 require_auth();
 require_once __DIR__ . '/../app/reservation_edit.php';
+require_once __DIR__ . '/../app/reservation_documents.php';
 
 $id = (int) ($_GET['id'] ?? $_POST['id'] ?? 0);
 $reservation = find_reservation($id);
@@ -27,6 +28,18 @@ if ((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
     verify_csrf();
     $action = (string) ($_POST['action'] ?? '');
+
+    if ($action === 'upload-identity-document') {
+        try {
+            attach_reservation_identity_document($id, $_FILES['identity_document'] ?? [], (string) ($_POST['retention_until'] ?? ''));
+            flash('success', 'Identiteitsdocument veilig toegevoegd aan dit dossier.');
+        } catch (Throwable $e) {
+            error_log('Identiteitsdocument toevoegen: ' . $e->getMessage());
+            flash('error', ($e instanceof DomainException || ($e instanceof RuntimeException && !$e instanceof PDOException))
+                ? $e->getMessage() : 'Het document kon niet worden opgeslagen. Probeer opnieuw.');
+        }
+        redirect('reservation.php?id=' . $id . '#identiteitsdocument');
+    }
 
     if ($action === 'update-details') {
         $editInput = $_POST;
@@ -438,14 +451,31 @@ render_header(($isReplacement ? 'Vervangfiets #' : ($isTest ? 'Testreservatie #'
             <?php endif; ?>
         <?php endif; ?>
 
-        <hr><h2>Identiteitsdocument</h2>
+        <?php endif; ?>
+        <hr><h2 id="identiteitsdocument">Identiteitsdocument</h2>
         <?php if ($reservation['document_id'] && !$reservation['document_deleted_at']): ?>
             <p><strong><?= e((string) $reservation['document_name']) ?></strong><br><span class="muted"><?= e((string) $reservation['document_mime']) ?> · <?= number_format((int) $reservation['document_size'] / 1024, 0, ',', '.') ?> KB</span></p>
             <p class="muted">Bewaren tot <?= e($reservation['retention_until'] ? (new DateTimeImmutable((string) $reservation['retention_until']))->format('d/m/Y') : 'niet ingesteld') ?></p>
             <?php if (!$isFinanceView): ?><a class="button button-secondary" href="index.php?route=id-download&amp;id=<?= (int) $reservation['document_id'] ?>">Veilig openen</a><?php endif; ?>
         <?php else: ?>
             <p class="muted">Geen document gekoppeld.</p>
-        <?php endif; ?>
+            <?php if (!$isFinanceView && $reservation['status'] !== 'cancelled'): ?>
+                <form method="post" enctype="multipart/form-data" class="stack">
+                    <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
+                    <input type="hidden" name="id" value="<?= $id ?>">
+                    <input type="hidden" name="action" value="upload-identity-document">
+                    <div class="field">
+                        <label for="dossier-identity-document">Foto of PDF toevoegen</label>
+                        <input id="dossier-identity-document" type="file" name="identity_document" accept="image/jpeg,image/png,application/pdf" required>
+                        <span class="help">JPG, PNG of PDF · maximaal <?= e(env('ID_MAX_MB', '8')) ?> MB.</span>
+                    </div>
+                    <div class="field">
+                        <label for="dossier-id-retention">Automatisch verwijderen na</label>
+                        <input id="dossier-id-retention" type="date" name="retention_until" min="<?= e(date('Y-m-d', strtotime('+1 day'))) ?>" value="<?= e(date('Y-m-d', strtotime('+30 days'))) ?>" required>
+                    </div>
+                    <button class="button button-secondary" type="submit">Identiteitsdocument uploaden</button>
+                </form>
+            <?php endif; ?>
         <?php endif; ?>
     </aside>
 

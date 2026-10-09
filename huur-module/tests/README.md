@@ -37,3 +37,6 @@ Tetris, inclusief het vrijspelen van rijen.
 `node --experimental-wasm-jspi huur-module/tests/tablet-contracts.cjs` (vanaf repositoryroot).
 Test met een tijdelijke PHP/Wasm-database: rechten, zoeken, statusfilters, CSRF,
 gewijzigde contractinhoud, ondertekening en behoud van het ondertekende document.
+
+### Identiteitsdocument achteraf
+`node --experimental-wasm-jspi huur-module/tests/identity-document.cjs` test echte multipartuploads met fictieve gegevens: toegang, CSRF, MIME, bewaardatum, beveiligde opslag en bescherming van bestaande documenten.

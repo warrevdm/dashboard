@@ -278,14 +278,19 @@ function upload_identity_document(array $file, int $customerId, ?string $retenti
         'INSERT INTO identity_documents (customer_id, original_name, stored_name, mime_type, size_bytes, retention_until, created_at)
          VALUES (:customer_id, :original_name, :stored_name, :mime_type, :size_bytes, :retention_until, CURRENT_TIMESTAMP)'
     );
-    $stmt->execute([
-        ':customer_id' => $customerId,
-        ':original_name' => basename((string) ($file['name'] ?? 'identiteitsdocument')),
-        ':stored_name' => $storedName,
-        ':mime_type' => $mime,
-        ':size_bytes' => $size,
-        ':retention_until' => $retentionUntil,
-    ]);
+    try {
+        $stmt->execute([
+            ':customer_id' => $customerId,
+            ':original_name' => basename((string) ($file['name'] ?? 'identiteitsdocument')),
+            ':stored_name' => $storedName,
+            ':mime_type' => $mime,
+            ':size_bytes' => $size,
+            ':retention_until' => $retentionUntil,
+        ]);
+    } catch (Throwable $e) {
+        @unlink($destination);
+        throw $e;
+    }
 
     return (int) db()->lastInsertId();
 }
