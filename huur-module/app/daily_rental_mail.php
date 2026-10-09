@@ -89,7 +89,7 @@ function run_daily_rental_mail(PDO $pdo, DateTimeImmutable $now, callable $send,
     $message = daily_rental_message($pdo, $now);
     $sent = 0;
     $uncertain = false;
-    foreach (['werkplaats@aertsactionbike.be','marketing@aertsactionbike.be'] as $to) {
+    foreach (['werkplaats@aertsactionbike.be','marketing@aertsactionbike.be','verkoop@aertsactionbike.be'] as $to) {
         $claim = $pdo->prepare("INSERT OR IGNORE INTO daily_rental_mail_runs(day,recipient,status) VALUES (?,?,'sending')");
         $claim->execute([$runKey,$to]);
         if ($claim->rowCount() === 0) {

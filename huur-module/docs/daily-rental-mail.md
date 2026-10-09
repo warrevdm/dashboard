@@ -1,6 +1,6 @@
 # Dagmail: verhuren onderweg
 
-Elke dag vanaf 17:00 Europe/Brussels (ook weekends) naar werkplaats@aertsactionbike.be en marketing@aertsactionbike.be. Dezelfde selectie als de planning: status picked_up, alle types. Eén kaart per dossier met alle fietsen, klantnaam, periode, te-laat-markering en beveiligde dossierlink. Ook een leeg overzicht wordt verzonden.
+Elke dag vanaf 17:00 Europe/Brussels (ook weekends) naar werkplaats@aertsactionbike.be, marketing@aertsactionbike.be en verkoop@aertsactionbike.be. Dezelfde selectie als de planning: status picked_up, alle types. Eén kaart per dossier met alle fietsen, klantnaam, periode, te-laat-markering en beveiligde dossierlink. Ook een leeg overzicht wordt verzonden.
 
 ## Installatie
 

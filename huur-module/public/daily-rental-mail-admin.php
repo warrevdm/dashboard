@@ -41,7 +41,7 @@ render_header('Dagmail versturen');
 ?>
 <div class="card">
     <h1>Verhuren onderweg mailen</h1>
-    <p>Verstuur het actuele overzicht naar <strong>werkplaats@aertsactionbike.be</strong> en <strong>marketing@aertsactionbike.be</strong>.</p>
+    <p>Verstuur het actuele overzicht naar <strong>werkplaats@aertsactionbike.be</strong>, <strong>marketing@aertsactionbike.be</strong> en <strong>verkoop@aertsactionbike.be</strong>.</p>
     <p>Dit is een echte e-mail naar beide ontvangers, ook vóór 17:00. De automatische dagmail om 17:00 blijft apart gepland.</p>
     <?php if ($result !== null): ?>
         <div class="alert alert-success"><?= e($result) ?></div>
