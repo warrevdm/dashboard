@@ -40,3 +40,9 @@ gewijzigde contractinhoud, ondertekening en behoud van het ondertekende document
 
 ### Identiteitsdocument achteraf
 `node --experimental-wasm-jspi huur-module/tests/identity-document.cjs` test echte multipartuploads met fictieve gegevens: toegang, CSRF, MIME, bewaardatum, beveiligde opslag en bescherming van bestaande documenten.
+
+## Werkplaatsscherm
+
+`node --experimental-wasm-jspi huur-module/tests/workshop-board.cjs`
+
+Controleert dagselectie in Europe/Brussels, retourgrens, fietspakketten, HTML/JSON en toegangscontrole met synthetische gegevens.

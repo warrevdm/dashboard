@@ -50,6 +50,7 @@ function render_header(string $title, bool $showNav = true, string $assetProfile
                 <a href="/home/">Dashboard</a>
                 <?php if (!is_finance()): ?>
                     <a href="planning.php">Planning</a>
+                    <a href="workshop.php">Werkplaatsscherm</a>
                     <a href="contracts.php">Ondertekenen</a>
                     <a href="reservation-new.php">Nieuwe verhuur</a>
                     <?php if (can_use_quick_replacement()): ?>
