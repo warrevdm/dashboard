@@ -3,7 +3,7 @@
 Bij Nieuwe verhuur en bij Identiteitsdocument in het dossier staat **Foto van ID nemen**. De camera opent in de browser. Dit start niet de aparte Windows Camera-app.
 
 1. Open de HTTPS-website op de Surface en geef de browser cameratoegang.
-2. Kies indien nodig de achtercamera in de keuzelijst.
+2. De achtercamera wordt automatisch gekozen. Er is geen camerakeuzelijst. Als de achtercamera niet herkend wordt, stopt de functie met een melding; de voorcamera wordt niet als alternatief getoond.
 3. Neem de foto, controleer de leesbaarheid en kies **Deze foto gebruiken**.
 4. Vul de bewaardatum in en sla het formulier op om het document te uploaden.
 
