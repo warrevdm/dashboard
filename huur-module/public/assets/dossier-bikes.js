@@ -10,6 +10,7 @@
     const expected = root.querySelector('[data-package-price]');
     const confirmation = root.querySelector('[data-package-price-confirm]');
     const confirmInput = confirmation.querySelector('input');
+    confirmInput.addEventListener('invalid', () => { root.open = true; });
     let lastQuote = '';
     const update = () => {
       const query = normalize(search.value.trim());

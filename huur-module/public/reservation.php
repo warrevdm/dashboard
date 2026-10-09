@@ -487,14 +487,13 @@ render_header(($isReplacement ? 'Vervangfiets #' : ($isTest ? 'Testreservatie #'
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <fieldset class="field field-full dossier-bikes" data-dossier-bikes data-original-total="<?= e((string) $reservation['total_price']) ?>">
-                    <legend>Stel het fietspakket samen</legend>
+                <details class="field field-full dossier-bikes" data-dossier-bikes data-original-total="<?= e((string) $reservation['total_price']) ?>">
+                    <summary class="dossier-bikes-summary"><span>Stel het fietspakket samen</span><span class="dossier-bikes-count" data-bike-count aria-live="polite"></span><span class="dossier-bikes-toggle" aria-hidden="true"></span></summary>
                     <input type="hidden" name="edit_bikes" value="1">
                     <p class="help">Vink fietsen aan om ze toe te voegen, of uit om ze uit deze verhuur te halen. Behoud minstens één fiets. Beschikbaarheid wordt bij opslaan gecontroleerd. Bij toevoegen of verwijderen wordt het volledige pakket opnieuw berekend voor de gekozen periode. Een eerder handmatig afgesproken prijs of korting wordt daarbij vervangen.</p>
                     <div class="dossier-bikes-toolbar">
                         <label class="dossier-bikes-search">Zoek een fiets<input type="search" placeholder="Naam, fietsnummer of categorie…" data-bike-search></label>
                         <label class="dossier-bikes-filter"><input type="checkbox" data-selected-only> Alleen geselecteerde fietsen</label>
-                        <span class="dossier-bikes-count" data-bike-count aria-live="polite"></span>
                     </div>
                     <div class="dossier-bikes-grid">
                     <?php $selectedBikeIds = array_map('intval', is_array($editValues['bike_ids'] ?? null) ? $editValues['bike_ids'] : []);
@@ -529,7 +528,7 @@ render_header(($isReplacement ? 'Vervangfiets #' : ($isTest ? 'Testreservatie #'
                     <input type="hidden" name="expected_package_price" data-package-price>
                     <label data-package-price-confirm hidden><input type="checkbox" class="checkbox-inline" name="confirm_package_price" value="1"> Ik bevestig de nieuwe eindprijs.</label>
                     <p class="dossier-bikes-note">Je selectie wordt pas verwerkt wanneer je het dossier opslaat.</p>
-                </fieldset>
+                </details>
                 <?php foreach (['start_date' => ['Startdatum', 'date'], 'start_time' => ['Startuur', 'time'], 'end_date' => ['Einddatum', 'date'], 'end_time' => ['Einduur', 'time']] as $field => [$label, $type]): ?>
                     <div class="field">
                         <label for="edit-<?= e($field) ?>"><?= e($label) ?> *</label>
