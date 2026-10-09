@@ -482,3 +482,8 @@
 .rental-disclosure-toggle::before { content: 'Uitklappen +'; }
 .rental-bike-disclosure[open] .rental-disclosure-toggle::before { content: 'Inklappen −'; }
 @media (max-width: 700px) { .rental-bike-disclosure > summary { flex-wrap: wrap; } }
+
+.rental-category-filter { display: grid; gap: 5px; min-width: 170px; font-weight: 700; }
+.rental-category-filter select { width: 100%; min-height: 44px; }
+.rental-bike-toolbar { flex-wrap: wrap; align-items: end; }
+@media (max-width: 700px) { .rental-category-filter { width: 100%; } }

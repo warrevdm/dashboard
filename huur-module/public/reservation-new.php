@@ -193,6 +193,12 @@ if ($method === 'POST') {
 }
 
 $bikes = all_bikes(true);
+$bikeCategories = [];
+foreach ($bikes as $bike) {
+    $category = trim((string) ($bike['category'] ?? ''));
+    if ($category !== '' && !in_array($category, $bikeCategories, true)) $bikeCategories[] = $category;
+}
+natcasesort($bikeCategories);
 $startAt = parse_datetime($startDate, $startTime);
 $endAt = parse_datetime($endDate, $endTime);
 $availabilityReady = $startAt && $endAt && $endAt > $startAt;
@@ -248,6 +254,14 @@ render_header('Nieuwe verhuur');
 
             <div class="rental-bike-toolbar">
                 <input type="search" placeholder="Zoek code, model of categorie…" data-rental-bike-search aria-label="Fiets zoeken">
+                <label class="rental-category-filter" for="rental-bike-category">Soort fiets
+                    <select id="rental-bike-category" data-rental-bike-category>
+                        <option value="">Alle soorten</option>
+                        <?php foreach ($bikeCategories as $category): ?>
+                            <option value="<?= e($category) ?>"><?= e($category) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
                 <div class="rental-bike-filters" data-rental-bike-filters>
                     <button type="button" class="button button-secondary is-active" data-rental-filter="ALL">Alles</button>
                     <button type="button" class="button button-secondary" data-rental-filter="H">Huur</button>
@@ -255,6 +269,8 @@ render_header('Nieuwe verhuur');
                     <button type="button" class="button button-secondary" data-rental-filter="T">Test</button>
                 </div>
             </div>
+
+            <p class="muted" data-rental-filter-empty role="status" hidden>Geen fietsen gevonden met deze filters. Kies een andere soort of pas de zoekopdracht aan.</p>
 
             <select name="bike_ids[]" multiple required data-bike-select data-visual-picker class="rental-native-select" aria-hidden="true" tabindex="-1">
                 <?php foreach ($bikes as $bike):
