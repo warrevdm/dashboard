@@ -7,6 +7,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const select = form.querySelector('[data-bike-select]');
   const cards = Array.from(form.querySelectorAll('[data-rental-bike-card]'));
   const search = form.querySelector('[data-rental-bike-search]');
+  const categoryFilter = form.querySelector('[data-rental-bike-category]');
+  const emptyFilterMessage = form.querySelector('[data-rental-filter-empty]');
   const filterButtons = Array.from(form.querySelectorAll('[data-rental-filter]'));
   const selectedCount = form.querySelector('[data-rental-selected-count]');
   const summaryBikes = form.querySelector('[data-rental-summary-bikes]');
@@ -19,6 +21,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let priceTimer = null;
 
   if (!select) return;
+
+  // Reveal the required picker before the browser focuses an invalid selection.
+  select.addEventListener('invalid', () => {
+    const disclosure = form.querySelector('[data-bike-disclosure]');
+    if (disclosure) disclosure.open = true;
+  });
 
   const optionById = (id) => select.querySelector(`option[value="${CSS.escape(String(id))}"]`);
 
@@ -130,6 +138,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const applySearchAndFilter = () => {
     const needle = String(search?.value || '').trim().toLowerCase();
+    const category = String(categoryFilter?.value || '').trim();
+    let visibleCount = 0;
     for (const card of cards) {
       const id = Number.parseInt(card.dataset.bikeId || '0', 10);
       const option = optionById(id);
@@ -140,8 +150,11 @@ document.addEventListener('DOMContentLoaded', () => {
         .toLowerCase();
       const matchesSearch = !needle || haystack.includes(needle);
       const matchesFilter = matchesUsageFilter(usageType);
-      card.hidden = !(matchesSearch && matchesFilter);
+      const matchesCategory = !category || String(card.dataset.bikeCategory || '').trim() === category;
+      card.hidden = !(matchesSearch && matchesFilter && matchesCategory);
+      if (!card.hidden) visibleCount++;
     }
+    if (emptyFilterMessage) emptyFilterMessage.hidden = visibleCount > 0;
   };
 
   for (const card of cards) {
@@ -157,6 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   search?.addEventListener('input', applySearchAndFilter);
+  categoryFilter?.addEventListener('change', applySearchAndFilter);
 
   for (const button of filterButtons) {
     button.addEventListener('click', () => {

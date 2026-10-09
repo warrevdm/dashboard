@@ -199,6 +199,10 @@
     box-shadow: inset 5px 0 0 #2563eb;
 }
 
+.booking-block.booking-type-test {
+    box-shadow: inset 5px 0 0 #7c3aed;
+}
+
 .booking-block.booking-type-replacement {
     box-shadow: inset 5px 0 0 #60bb46;
 }
@@ -231,6 +235,12 @@
     border-color: #93c5fd;
     background: #dbeafe;
     color: #1d4ed8;
+}
+
+.booking-kind-test {
+    border-color: #c4b5fd;
+    background: #ede9fe;
+    color: #5b21b6;
 }
 
 .booking-kind-replacement {

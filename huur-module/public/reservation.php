@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../app/bootstrap.php';
 require_auth();
+require_once __DIR__ . '/../app/overdue_rentals.php';
+require_once __DIR__ . '/../app/reservation_edit.php';
+require_once __DIR__ . '/../app/reservation_documents.php';
+require_once __DIR__ . '/../app/bike_returns.php';
 
 $id = (int) ($_GET['id'] ?? $_POST['id'] ?? 0);
 $reservation = find_reservation($id);
@@ -15,6 +19,8 @@ if (!$reservation) {
 $contract = find_contract_by_reservation($id);
 $isFinanceView = is_finance();
 $isReplacementReservation = (string) ($reservation['rental_kind'] ?? 'rental') === 'replacement';
+$editError = null;
+$editInput = null;
 
 if ((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if ($isFinanceView) {
@@ -25,137 +31,39 @@ if ((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     verify_csrf();
     $action = (string) ($_POST['action'] ?? '');
 
-    if ($action === 'update-replacement-details') {
-        if (!$isReplacementReservation || (string) $reservation['status'] === 'cancelled') {
-            flash('error', 'Dit vervangdossier kan niet worden aangepast.');
-            redirect('reservation.php?id=' . $id);
-        }
-
-        $customerName = trim((string) ($_POST['customer_name'] ?? ''));
-        $customerPhone = trim((string) ($_POST['customer_phone'] ?? ''));
-        $customerEmail = trim((string) ($_POST['customer_email'] ?? ''));
-        $customerAddress = trim((string) ($_POST['customer_address'] ?? ''));
-        $startAt = parse_datetime(
-            (string) ($_POST['start_date'] ?? ''),
-            (string) ($_POST['start_time'] ?? '')
-        );
-        $endAt = parse_datetime(
-            (string) ($_POST['end_date'] ?? ''),
-            (string) ($_POST['end_time'] ?? '')
-        );
-        $bikeId = (int) ($_POST['bike_id'] ?? 0);
-        $status = (string) ($_POST['status'] ?? '');
-        $notes = trim((string) ($_POST['notes'] ?? '')) ?: null;
-
-        if ($customerName === '' || !$startAt || !$endAt || $endAt <= $startAt) {
-            flash('error', 'Vul een geldige klantnaam en periode in.');
-            redirect('reservation.php?id=' . $id . '#vervangfiets-beheer');
-        }
-        if ($customerEmail !== '' && !filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
-            flash('error', 'Vul een geldig e-mailadres in of laat het veld leeg.');
-            redirect('reservation.php?id=' . $id . '#vervangfiets-beheer');
-        }
-        if (!in_array($status, ['reserved', 'confirmed', 'picked_up', 'returned'], true)) {
-            flash('error', 'Kies een geldige status.');
-            redirect('reservation.php?id=' . $id . '#vervangfiets-beheer');
-        }
-
-        $bike = find_bike($bikeId);
-        if (!$bike) {
-            flash('error', 'De gekozen fiets bestaat niet meer.');
-            redirect('reservation.php?id=' . $id . '#vervangfiets-beheer');
-        }
-
-        $currentBikeIds = array_map(
-            static fn (array $item): int => (int) $item['id'],
-            (array) ($reservation['bikes'] ?? [])
-        );
-        $bikeChanged = !in_array($bikeId, $currentBikeIds, true);
-        if ($bikeChanged && (string) ($bike['status'] ?? '') !== 'active') {
-            flash('error', 'De gekozen fiets is niet actief en kan niet worden ingepland.');
-            redirect('reservation.php?id=' . $id . '#vervangfiets-beheer');
-        }
-
-        if (reservation_conflicts(
-            $bikeId,
-            $startAt->format('Y-m-d H:i:s'),
-            $endAt->format('Y-m-d H:i:s'),
-            $id
-        )) {
-            flash('error', 'De gekozen fiets is al ingepland binnen deze periode.');
-            redirect('reservation.php?id=' . $id . '#vervangfiets-beheer');
-        }
-
-        db()->beginTransaction();
+    if ($action === 'return-bike') {
         try {
-            $customerStmt = db()->prepare(
-                'UPDATE customers
-                 SET name = :name, phone = :phone, email = :email, address = :address
-                 WHERE id = :id'
-            );
-            $customerStmt->execute([
-                ':name' => $customerName,
-                ':phone' => $customerPhone !== '' ? $customerPhone : null,
-                ':email' => $customerEmail !== '' ? $customerEmail : null,
-                ':address' => $customerAddress !== '' ? $customerAddress : null,
-                ':id' => (int) $reservation['customer_id'],
-            ]);
+            return_reservation_bike($id, (int) ($_POST['bike_id'] ?? 0));
+            flash('success', 'Retour geregistreerd. De fiets is weer beschikbaar voor nieuwe reservaties, tenzij deze in onderhoud of inactief is.');
+        } catch (DomainException $e) { flash('error', $e->getMessage()); }
+        catch (Throwable $e) { error_log('Retour fiets: ' . $e->getMessage()); flash('error', 'Retour kon niet worden opgeslagen. Probeer opnieuw.'); }
+        redirect('reservation.php?id=' . $id . '#fietsretours');
+    }
 
-            $reservationStmt = db()->prepare(
-                'UPDATE reservations
-                 SET bike_id = :bike_id,
-                     start_at = :start_at,
-                     end_at = :end_at,
-                     status = :status,
-                     notes = :notes,
-                     updated_at = CURRENT_TIMESTAMP
-                 WHERE id = :id'
-            );
-            $reservationStmt->execute([
-                ':bike_id' => $bikeId,
-                ':start_at' => $startAt->format('Y-m-d H:i:s'),
-                ':end_at' => $endAt->format('Y-m-d H:i:s'),
-                ':status' => $status,
-                ':notes' => $notes,
-                ':id' => $id,
-            ]);
-
-            if ($bikeChanged || count($currentBikeIds) !== 1) {
-                $deleteBikeStmt = db()->prepare('DELETE FROM reservation_bikes WHERE reservation_id = :reservation_id');
-                $deleteBikeStmt->execute([':reservation_id' => $id]);
-
-                $insertBikeStmt = db()->prepare(
-                    'INSERT INTO reservation_bikes (reservation_id, bike_id, daily_rate)
-                     VALUES (:reservation_id, :bike_id, 0)'
-                );
-                $insertBikeStmt->execute([
-                    ':reservation_id' => $id,
-                    ':bike_id' => $bikeId,
-                ]);
-            }
-
-            db()->commit();
+    if ($action === 'upload-identity-document') {
+        try {
+            attach_reservation_identity_document($id, $_FILES['identity_document'] ?? [], (string) ($_POST['retention_until'] ?? ''));
+            flash('success', 'Identiteitsdocument veilig toegevoegd aan dit dossier.');
         } catch (Throwable $e) {
-            if (db()->inTransaction()) {
-                db()->rollBack();
-            }
-            flash('error', 'De gegevens van de vervangfiets konden niet worden opgeslagen.');
-            redirect('reservation.php?id=' . $id . '#vervangfiets-beheer');
+            error_log('Identiteitsdocument toevoegen: ' . $e->getMessage());
+            flash('error', ($e instanceof DomainException || ($e instanceof RuntimeException && !$e instanceof PDOException))
+                ? $e->getMessage() : 'Het document kon niet worden opgeslagen. Probeer opnieuw.');
         }
+        redirect('reservation.php?id=' . $id . '#identiteitsdocument');
+    }
 
-        audit('update_replacement_reservation', 'reservation', $id, [
-            'old_bike_ids' => $currentBikeIds,
-            'new_bike_id' => $bikeId,
-            'old_start_at' => (string) $reservation['start_at'],
-            'new_start_at' => $startAt->format('Y-m-d H:i:s'),
-            'old_end_at' => (string) $reservation['end_at'],
-            'new_end_at' => $endAt->format('Y-m-d H:i:s'),
-            'old_status' => (string) $reservation['status'],
-            'new_status' => $status,
-        ]);
-
-        flash('success', 'Vervangfietsplanning bijgewerkt.');
-        redirect('reservation.php?id=' . $id . '#vervangfiets-beheer');
+    if ($action === 'update-details') {
+        $editInput = $_POST;
+        try {
+            update_reservation_details($id, $_POST);
+            flash('success', 'Reservatie en dossier bijgewerkt. Bij een gewijzigd fietspakket is de eindprijs herberekend. Bestaande betalingen zijn behouden.');
+            redirect('reservation.php?id=' . $id . '#dossier-bewerken');
+        } catch (DomainException $e) {
+            $editError = $e->getMessage();
+        } catch (Throwable $e) {
+            error_log('Reservatie bewerken: ' . $e->getMessage());
+            $editError = 'De wijzigingen konden niet worden opgeslagen. Probeer opnieuw.';
+        }
     }
 
     if ($action === 'update-replacement-cost') {
@@ -382,7 +290,7 @@ if ((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'amount' => $amount,
             'method' => $method,
         ]);
-        $paymentContext = $isReplacementReservation ? 'replacement_cost' : 'rental';
+        $paymentContext = $isReplacementReservation ? 'replacement_cost' : (string) $reservation['rental_kind'];
         audit('payment_context', 'payment_log', $paymentId, ['context' => $paymentContext]);
         flash('success', $isReplacementReservation ? 'Betaling op de vervangkost geregistreerd.' : 'Betaling geregistreerd in het betalingslog.');
         redirect('reservation.php?id=' . $id . ($isReplacementReservation ? '#vervangkost' : '#betalingen'));
@@ -395,15 +303,35 @@ $payments = reservation_payments($id);
 $paymentSummary = reservation_payment_summary($id, (float) $reservation['total_price']);
 $rentalKind = (string) ($reservation['rental_kind'] ?? 'rental');
 $isReplacement = $rentalKind === 'replacement';
-$replacementBikeOptions = $isReplacement ? all_bikes(true) : [];
+$isTest = $rentalKind === 'test';
+$canEdit = !$isFinanceView && (string) $reservation['status'] !== 'cancelled';
+$replacementBikeOptions = $canEdit ? all_bikes(true) : [];
+$editValues = $editInput ?? [
+    'customer_name' => (string) $reservation['customer_name'],
+    'customer_phone' => (string) ($reservation['customer_phone'] ?? ''),
+    'customer_email' => (string) ($reservation['customer_email'] ?? ''),
+    'customer_address' => (string) ($reservation['customer_address'] ?? ''),
+    'start_date' => (new DateTimeImmutable((string) $reservation['start_at']))->format('Y-m-d'),
+    'start_time' => (new DateTimeImmutable((string) $reservation['start_at']))->format('H:i'),
+    'end_date' => (new DateTimeImmutable((string) $reservation['end_at']))->format('Y-m-d'),
+    'end_time' => (new DateTimeImmutable((string) $reservation['end_at']))->format('H:i'),
+    'rental_kind' => $rentalKind, 'status' => (string) $reservation['status'],
+    'notes' => (string) ($reservation['notes'] ?? ''), 'bike_id' => (string) $reservation['bike_id'],
+    'bike_ids' => array_column($reservation['bikes'], 'id'),
+    'version' => reservation_edit_version($reservation, $contract),
+];
 
-render_header(($isReplacement ? 'Vervangfiets #' : 'Verhuur #') . $id);
+render_header(($isReplacement ? 'Vervangfiets #' : ($isTest ? 'Testreservatie #' : 'Verhuur #')) . $id);
+render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
 ?>
 <?php if ($isFinanceView): ?>
     <div class="actions mb-18">
         <a class="button button-secondary" href="cashbook.php">← Terug naar kasboek</a>
         <span class="badge">Alleen-lezen voor Boekhouding</span>
     </div>
+<?php endif; ?>
+<?php if ($editError !== null): ?>
+    <div class="alert alert-error" role="alert"><?= e($editError) ?> <a href="reservation.php?id=<?= $id ?>#dossier-bewerken">Dossier herladen</a></div>
 <?php endif; ?>
 <section class="grid" data-finance-readonly="<?= $isFinanceView ? '1' : '0' ?>">
     <div class="card col-8">
@@ -413,6 +341,7 @@ render_header(($isReplacement ? 'Vervangfiets #' : 'Verhuur #') . $id);
                 <p class="muted"><?= count($reservation['bikes']) ?> fiets(en) in dit dossier</p>
             </div>
             <div class="actions">
+                <?php if ($canEdit): ?><a class="button button-secondary" href="#dossier-bewerken" data-edit-reservation>Dossier aanpassen</a><?php endif; ?>
                 <?php if ($isReplacement): ?>
                     <span class="booking-kind booking-kind-replacement">↺ Vervangfiets</span>
                     <?php if ((float) $reservation['total_price'] > 0): ?>
@@ -423,7 +352,7 @@ render_header(($isReplacement ? 'Vervangfiets #' : 'Verhuur #') . $id);
                         <span class="badge booking-payment-not-required">€0 · geen kost</span>
                     <?php endif; ?>
                 <?php else: ?>
-                    <span class="booking-kind booking-kind-rental">€ Huurfiets</span>
+                    <span class="booking-kind booking-kind-<?= $isTest ? 'test' : 'rental' ?>"><?= $isTest ? 'Testfiets' : '€ Huurfiets' ?></span>
                     <?php if (!$isFinanceView): ?>
                         <a class="button button-secondary" href="#betalingen">Betaling registreren</a>
                     <?php endif; ?>
@@ -432,6 +361,7 @@ render_header(($isReplacement ? 'Vervangfiets #' : 'Verhuur #') . $id);
             </div>
         </div>
 
+        <p id="fietsretours" class="muted">Registreer de retour per fiets. De afgesproken huurprijs blijft behouden.</p>
         <div class="reservation-bike-list">
             <?php foreach ($reservation['bikes'] as $bike): ?>
                 <article class="reservation-bike-item">
@@ -445,6 +375,20 @@ render_header(($isReplacement ? 'Vervangfiets #' : 'Verhuur #') . $id);
                         <div class="muted"><?= e((string) $bike['category']) ?> · maat <?= e((string) ($bike['frame_size'] ?: '—')) ?></div>
                         <div class="muted">Framenummer: <?= e((string) ($bike['frame_number'] ?: '—')) ?></div>
                     </div>
+                    <?php if (!empty($bike['returned_at'])): ?>
+                        <span class="badge status-returned">Teruggebracht · <?= e((new DateTimeImmutable($bike['returned_at']))->format('d/m/Y H:i')) ?></span>
+                    <?php elseif ($reservation['status'] === 'picked_up' && !$isFinanceView): ?>
+                        <form method="post" class="stack">
+                            <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
+                            <input type="hidden" name="action" value="return-bike">
+                            <input type="hidden" name="id" value="<?= $id ?>">
+                            <input type="hidden" name="bike_id" value="<?= (int)$bike['id'] ?>">
+                            <label><input type="checkbox" required> Deze fiets is terug in de winkel</label>
+                            <button class="button button-secondary" type="submit">Retour registreren</button>
+                        </form>
+                    <?php elseif ($reservation['status'] === 'returned'): ?>
+                        <span class="badge status-returned">Teruggebracht</span>
+                    <?php endif; ?>
                     <span class="badge badge-<?= e((string) $bike['status']) ?>"><?= e(bike_status_label((string) $bike['status'])) ?></span>
                 </article>
             <?php endforeach; ?>
@@ -456,7 +400,7 @@ render_header(($isReplacement ? 'Vervangfiets #' : 'Verhuur #') . $id);
             <dt>Telefoon</dt><dd><?= e((string) ($reservation['customer_phone'] ?: '—')) ?></dd>
             <dt>E-mail</dt><dd><?= e((string) ($reservation['customer_email'] ?: '—')) ?></dd>
             <dt>Adres</dt><dd><?= e((string) ($reservation['customer_address'] ?: '—')) ?></dd>
-            <dt>Type</dt><dd><?= $isReplacement ? '↺ Vervangfiets' : '€ Huurfiets · betaling verwacht' ?></dd>
+            <dt>Type</dt><dd><?= $isReplacement ? '↺ Vervangfiets' : ($isTest ? 'Testfiets' : '€ Huurfiets · betaling verwacht') ?></dd>
             <?php if ($isReplacement): ?>
                 <dt>Vervangkost</dt><dd><?= (float) $reservation['total_price'] > 0 ? '€ ' . number_format((float) $reservation['total_price'], 2, ',', '.') : 'Geen kost gekoppeld' ?></dd>
                 <dt>Kostomschrijving</dt><dd><?= e((string) (($reservation['replacement_cost_note'] ?? '') ?: '—')) ?></dd>
@@ -471,7 +415,7 @@ render_header(($isReplacement ? 'Vervangfiets #' : 'Verhuur #') . $id);
         <?php if ($isReplacement): ?>
             <h2>Vervangdossier</h2>
             <p><span class="badge status-<?= e((string) $reservation['status']) ?>"><?= e(status_label((string) $reservation['status'])) ?></span></p>
-            <p class="muted">Dit dossier is aangemaakt via Snelle vervangfiets en gebruikt geen klassieke huurprijs of standaard huurovereenkomst.</p>
+            <p class="muted">Dit is een vervangdossier. Een eventuele kost beheer je hieronder bij Vervangkost / eigen bijdrage.</p>
             <?php if (!empty($reservation['cancelled_at'])): ?>
                 <div class="alert alert-warning">
                     <strong>Uit planning verwijderd</strong><br>
@@ -480,7 +424,8 @@ render_header(($isReplacement ? 'Vervangfiets #' : 'Verhuur #') . $id);
                     Reden: <?= e((string) (($reservation['cancelled_reason'] ?? '') ?: 'Niet opgegeven')) ?>
                 </div>
             <?php endif; ?>
-        <?php else: ?>
+        <?php endif; ?>
+        <?php if (!$isReplacement || $contract): ?>
         <h2>Huurovereenkomst</h2>
         <?php if (!$contract): ?>
             <p class="muted">Nog geen contract opgemaakt.</p>
@@ -533,104 +478,141 @@ render_header(($isReplacement ? 'Vervangfiets #' : 'Verhuur #') . $id);
             <?php endif; ?>
         <?php endif; ?>
 
-        <hr><h2>Identiteitsdocument</h2>
+        <?php endif; ?>
+        <hr><h2 id="identiteitsdocument">Identiteitsdocument</h2>
         <?php if ($reservation['document_id'] && !$reservation['document_deleted_at']): ?>
             <p><strong><?= e((string) $reservation['document_name']) ?></strong><br><span class="muted"><?= e((string) $reservation['document_mime']) ?> · <?= number_format((int) $reservation['document_size'] / 1024, 0, ',', '.') ?> KB</span></p>
             <p class="muted">Bewaren tot <?= e($reservation['retention_until'] ? (new DateTimeImmutable((string) $reservation['retention_until']))->format('d/m/Y') : 'niet ingesteld') ?></p>
             <?php if (!$isFinanceView): ?><a class="button button-secondary" href="index.php?route=id-download&amp;id=<?= (int) $reservation['document_id'] ?>">Veilig openen</a><?php endif; ?>
         <?php else: ?>
             <p class="muted">Geen document gekoppeld.</p>
-        <?php endif; ?>
+            <?php if (!$isFinanceView && $reservation['status'] !== 'cancelled'): ?>
+                <form method="post" enctype="multipart/form-data" class="stack">
+                    <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
+                    <input type="hidden" name="id" value="<?= $id ?>">
+                    <input type="hidden" name="action" value="upload-identity-document">
+                    <div class="field">
+                        <label for="dossier-identity-document">Foto of PDF toevoegen</label>
+                        <input id="dossier-identity-document" type="file" name="identity_document" accept="image/jpeg,image/png,application/pdf" required>
+                        <span class="help">JPG, PNG of PDF · maximaal <?= e(env('ID_MAX_MB', '8')) ?> MB.</span>
+                    </div>
+                    <div class="field">
+                        <label for="dossier-id-retention">Automatisch verwijderen na</label>
+                        <input id="dossier-id-retention" type="date" name="retention_until" min="<?= e(date('Y-m-d', strtotime('+1 day'))) ?>" value="<?= e(date('Y-m-d', strtotime('+30 days'))) ?>" required>
+                    </div>
+                    <button class="button button-secondary" type="submit">Identiteitsdocument uploaden</button>
+                </form>
+            <?php endif; ?>
         <?php endif; ?>
     </aside>
 
-    <?php if ($isReplacement): ?>
-        <?php if (!$isFinanceView && (string) $reservation['status'] !== 'cancelled'): ?>
-        <div class="card col-12" id="vervangfiets-beheer">
-            <div class="actions actions-between">
-                <div>
-                    <h2>Vervangfiets beheren</h2>
-                    <p class="muted">Pas klant, fiets, periode en status aan. Beschikbaarheid wordt bij opslaan opnieuw gecontroleerd.</p>
-                </div>
-                <a class="button button-secondary" href="planning.php?start=<?= e((new DateTimeImmutable((string) $reservation['start_at']))->format('Y-m-d')) ?>">Toon in planning</a>
+    <?php if ($canEdit): ?>
+    <link rel="stylesheet" href="assets/dossier-bikes.css?v=1">
+    <script src="assets/dossier-bikes.js?v=2" defer></script>
+    <div class="card col-12" id="dossier-bewerken">
+        <div class="actions actions-between">
+            <div>
+                <h2>Dossier aanpassen</h2>
+                <p class="muted">Wijzig de periode, het type, de klantgegevens, status en interne notities. De beschikbaarheid van alle gekoppelde fietsen wordt bij opslaan gecontroleerd.</p>
             </div>
-
-            <form method="post" class="stack mt-18">
-                <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
-                <input type="hidden" name="id" value="<?= $id ?>">
-                <input type="hidden" name="action" value="update-replacement-details">
-
-                <div class="form-grid">
-                    <div class="field field-full">
-                        <label for="replacement-bike">Vervangfiets *</label>
-                        <select id="replacement-bike" name="bike_id" required>
-                            <?php foreach ($replacementBikeOptions as $bikeOption):
-                                $isCurrentBike = (int) $bikeOption['id'] === (int) $reservation['bike_id'];
-                                $optionUnavailable = !$isCurrentBike && (string) $bikeOption['status'] !== 'active';
-                            ?>
-                                <option value="<?= (int) $bikeOption['id'] ?>" <?= $isCurrentBike ? 'selected' : '' ?> <?= $optionUnavailable ? 'disabled' : '' ?>>
-                                    <?= e((string) $bikeOption['code'] . ' — ' . (string) $bikeOption['name'] . ' (' . (string) $bikeOption['category'] . ')' . ($optionUnavailable ? ' · niet actief' : '')) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <div class="field">
-                        <label for="replacement-customer-name">Klantnaam *</label>
-                        <input id="replacement-customer-name" name="customer_name" required value="<?= e((string) $reservation['customer_name']) ?>">
-                    </div>
-                    <div class="field">
-                        <label for="replacement-phone">Telefoon</label>
-                        <input id="replacement-phone" name="customer_phone" type="tel" value="<?= e((string) ($reservation['customer_phone'] ?? '')) ?>">
-                    </div>
-                    <div class="field">
-                        <label for="replacement-email">E-mail</label>
-                        <input id="replacement-email" name="customer_email" type="email" value="<?= e((string) ($reservation['customer_email'] ?? '')) ?>">
-                    </div>
-                    <div class="field">
-                        <label for="replacement-address">Adres</label>
-                        <input id="replacement-address" name="customer_address" value="<?= e((string) ($reservation['customer_address'] ?? '')) ?>">
-                    </div>
-
-                    <div class="field">
-                        <label for="replacement-start-date">Startdatum *</label>
-                        <input id="replacement-start-date" name="start_date" type="date" required value="<?= e((new DateTimeImmutable((string) $reservation['start_at']))->format('Y-m-d')) ?>">
-                    </div>
-                    <div class="field">
-                        <label for="replacement-start-time">Startuur *</label>
-                        <input id="replacement-start-time" name="start_time" type="time" required value="<?= e((new DateTimeImmutable((string) $reservation['start_at']))->format('H:i')) ?>">
-                    </div>
-                    <div class="field">
-                        <label for="replacement-end-date">Einddatum *</label>
-                        <input id="replacement-end-date" name="end_date" type="date" required value="<?= e((new DateTimeImmutable((string) $reservation['end_at']))->format('Y-m-d')) ?>">
-                    </div>
-                    <div class="field">
-                        <label for="replacement-end-time">Retouruur *</label>
-                        <input id="replacement-end-time" name="end_time" type="time" required value="<?= e((new DateTimeImmutable((string) $reservation['end_at']))->format('H:i')) ?>">
-                    </div>
-
-                    <div class="field">
-                        <label for="replacement-status">Status</label>
-                        <select id="replacement-status" name="status">
-                            <?php foreach (['reserved', 'confirmed', 'picked_up', 'returned'] as $replacementStatus): ?>
-                                <option value="<?= e($replacementStatus) ?>" <?= (string) $reservation['status'] === $replacementStatus ? 'selected' : '' ?>><?= e(status_label($replacementStatus)) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="field field-full">
-                        <label for="replacement-notes">Interne notities</label>
-                        <textarea id="replacement-notes" name="notes"><?= e((string) ($reservation['notes'] ?? '')) ?></textarea>
-                    </div>
-                </div>
-
-                <div class="actions">
-                    <button class="button" type="submit">Wijzigingen opslaan</button>
-                    <span class="help">Bij een fietswissel controleert het systeem automatisch of de nieuwe fiets vrij is in de volledige periode.</span>
-                </div>
-            </form>
+            <a class="button button-secondary" href="planning.php?start=<?= e((new DateTimeImmutable((string) $reservation['start_at']))->format('Y-m-d')) ?>">Toon in planning</a>
         </div>
+        <?php if (!empty($contract['signed_at'])): ?>
+            <p class="alert alert-warning">Het ondertekende contract blijft bewaard met de oorspronkelijke afspraken. Een dossierwijziging past dat document niet aan. Bij een andere klantnaam moet de identiteit opnieuw worden gecontroleerd.</p>
+        <?php else: ?>
+            <p class="help">Bij wijziging van klantgegevens, fiets, periode of type vervalt een bestaand conceptcontract met zijn ondertekenlink. Je kunt daarna een nieuw contract opmaken.</p>
         <?php endif; ?>
+        <form method="post" action="reservation.php?id=<?= $id ?>#dossier-bewerken" class="stack mt-18">
+            <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
+            <input type="hidden" name="id" value="<?= $id ?>">
+            <input type="hidden" name="action" value="update-details">
+            <input type="hidden" name="version" value="<?= e((string) ($editValues['version'] ?? '')) ?>">
+            <div class="form-grid">
+                <div class="field">
+                    <label for="edit-kind">Type reservatie *</label>
+                    <select id="edit-kind" name="rental_kind" required>
+                        <?php foreach (['rental' => 'Huur', 'test' => 'Test', 'replacement' => 'Vervang'] as $value => $label): ?>
+                            <option value="<?= e($value) ?>" <?= ($editValues['rental_kind'] ?? '') === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="edit-status">Status *</label>
+                    <select id="edit-status" name="status" required>
+                        <?php foreach (['reserved', 'confirmed', 'picked_up', 'returned'] as $value): ?>
+                            <option value="<?= e($value) ?>" <?= ($editValues['status'] ?? '') === $value ? 'selected' : '' ?>><?= e(status_label($value)) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <details class="field field-full dossier-bikes" data-dossier-bikes data-original-total="<?= e((string) $reservation['total_price']) ?>">
+                    <summary class="dossier-bikes-summary"><span>Stel het fietspakket samen</span><span class="dossier-bikes-count" data-bike-count aria-live="polite"></span><span class="dossier-bikes-toggle" aria-hidden="true"></span></summary>
+                    <input type="hidden" name="edit_bikes" value="1">
+                    <p class="help">Vink fietsen aan om ze toe te voegen, of uit om ze uit deze verhuur te halen. Behoud minstens één fiets. Beschikbaarheid wordt bij opslaan gecontroleerd. Bij toevoegen of verwijderen wordt het volledige pakket opnieuw berekend voor de gekozen periode. Een eerder handmatig afgesproken prijs of korting wordt daarbij vervangen.</p>
+                    <div class="dossier-bikes-toolbar">
+                        <label class="dossier-bikes-search">Zoek een fiets<input type="search" placeholder="Naam, fietsnummer of categorie…" data-bike-search></label>
+                        <label class="dossier-bikes-filter"><input type="checkbox" data-selected-only> Alleen geselecteerde fietsen</label>
+                    </div>
+                    <div class="dossier-bikes-grid">
+                    <?php $selectedBikeIds = array_map('intval', is_array($editValues['bike_ids'] ?? null) ? $editValues['bike_ids'] : []);
+                    $currentBikeIds = array_map('intval', array_column($reservation['bikes'], 'id'));
+                    foreach ($replacementBikeOptions as $option):
+                        if ($option['status'] !== 'active' && !in_array((int) $option['id'], $currentBikeIds, true)) continue;
+                        $priceRule = rental_pricing_rule($option);
+                        $oldRates = array_column($reservation['bikes'], 'reserved_daily_rate', 'id');
+                        $dayRate = $priceRule['day_rate'] ?? $oldRates[$option['id']] ?? $option['daily_rate'];
+                        $selected = in_array((int) $option['id'], $selectedBikeIds, true);
+                        $inDossier = in_array((int) $option['id'], $currentBikeIds, true);
+                    ?>
+                        <label class="dossier-bike-card" data-bike-card data-original="<?= $inDossier ? '1' : '0' ?>" data-day="<?= e((string) $dayRate) ?>" data-week="<?= e((string) ($priceRule['week_rate'] ?? '')) ?>" data-search="<?= e($option['code'] . ' ' . $option['name'] . ' ' . $option['category']) ?>">
+                            <input class="dossier-bike-check" type="checkbox" name="bike_ids[]" value="<?= (int) $option['id'] ?>" <?= $selected ? 'checked' : '' ?>>
+                            <span class="dossier-bike-image">
+                                <?php if (!empty($option['photo_stored_name'])): ?>
+                                    <img src="<?= e(bike_photo_src($option, 480)) ?>" alt="" loading="lazy" decoding="async" width="320" height="180">
+                                <?php else: ?><span class="dossier-bike-placeholder">Geen foto beschikbaar</span><?php endif; ?>
+                                <span class="dossier-bike-badge"><?= $inDossier ? 'In huidig dossier' : 'Toe te voegen' ?></span>
+                            </span>
+                            <span class="dossier-bike-body">
+                                <span class="dossier-bike-code"><?= e($option['code'] . ' · ' . $option['category']) ?></span>
+                                <strong><?= e($option['name']) ?></strong>
+                                <?php if ($option['status'] !== 'active'): ?><span>Niet actief · al gekoppeld</span><?php endif; ?>
+                                <span class="dossier-bike-action"><span class="dossier-bike-add">+ Toevoegen</span><span class="dossier-bike-remove">✓ Geselecteerd · verwijderen</span></span>
+                            </span>
+                        </label>
+                    <?php endforeach; ?>
+                    </div>
+                    <p data-bike-empty hidden>Geen fietsen gevonden. Pas je zoekopdracht of filter aan.</p>
+                    <div class="alert alert-warning" data-package-price-notice hidden aria-live="polite"></div>
+                    <input type="hidden" name="expected_package_price" data-package-price>
+                    <label data-package-price-confirm hidden><input type="checkbox" class="checkbox-inline" name="confirm_package_price" value="1"> Ik bevestig de nieuwe eindprijs.</label>
+                    <p class="dossier-bikes-note">Je selectie wordt pas verwerkt wanneer je het dossier opslaat.</p>
+                </details>
+                <?php foreach (['start_date' => ['Startdatum', 'date'], 'start_time' => ['Startuur', 'time'], 'end_date' => ['Einddatum', 'date'], 'end_time' => ['Einduur', 'time']] as $field => [$label, $type]): ?>
+                    <div class="field">
+                        <label for="edit-<?= e($field) ?>"><?= e($label) ?> *</label>
+                        <input id="edit-<?= e($field) ?>" name="<?= e($field) ?>" type="<?= e($type) ?>" required value="<?= e((string) ($editValues[$field] ?? '')) ?>">
+                    </div>
+                <?php endforeach; ?>
+                <?php foreach (['customer_name' => ['Klantnaam', 'text'], 'customer_phone' => ['Telefoon', 'tel'], 'customer_email' => ['E-mail', 'email'], 'customer_address' => ['Adres', 'text']] as $field => [$label, $type]): ?>
+                    <div class="field">
+                        <label for="edit-<?= e($field) ?>"><?= e($label) ?><?= $field === 'customer_name' ? ' *' : '' ?></label>
+                        <input id="edit-<?= e($field) ?>" name="<?= e($field) ?>" type="<?= e($type) ?>" <?= $field === 'customer_name' ? 'required' : '' ?> value="<?= e((string) ($editValues[$field] ?? '')) ?>">
+                    </div>
+                <?php endforeach; ?>
+                <div class="field field-full">
+                    <label for="edit-notes">Interne notities</label>
+                    <textarea id="edit-notes" name="notes"><?= e((string) ($editValues['notes'] ?? '')) ?></textarea>
+                </div>
+            </div>
+            <p class="help">De afgesproken prijs en geregistreerde betalingen blijven behouden, ook bij een andere periode of een ander type. Pas een eventuele prijs apart aan bij de betalingen of vervangkost.</p>
+            <div class="actions">
+                <button class="button" type="submit">Wijzigingen opslaan</button>
+                <a class="button button-secondary" href="reservation.php?id=<?= $id ?>">Wijzigingen annuleren</a>
+            </div>
+        </form>
+    </div>
+    <?php endif; ?>
 
+    <?php if ($isReplacement): ?>
         <div class="card col-12 payment-card" id="vervangkost">
             <div class="actions actions-between">
                 <div>
@@ -738,7 +720,9 @@ render_header(($isReplacement ? 'Vervangfiets #' : 'Verhuur #') . $id);
                 <h2><?= $isFinanceView ? 'Betalingen' : 'Betalingen registreren' ?></h2>
                 <p class="muted"><?= $isFinanceView ? 'Financieel overzicht van deze reservatie.' : 'Log iedere betaling rechtstreeks op deze reservatie, met betaalwijze, medewerker, datum en uur.' ?></p>
             </div>
-            <?php if ($paymentSummary['is_paid']): ?>
+            <?php if ($isTest && (float) $reservation['total_price'] <= 0): ?>
+                <span class="payment-state payment-paid">Geen kost</span>
+            <?php elseif ($paymentSummary['is_paid']): ?>
                 <span class="payment-state payment-paid">Volledig afgerekend</span>
             <?php elseif ($paymentSummary['is_partial']): ?>
                 <span class="payment-state payment-partial">Deels betaald</span>
@@ -777,6 +761,8 @@ render_header(($isReplacement ? 'Vervangfiets #' : 'Verhuur #') . $id);
                 <div class="field"><label>Notitie</label><input name="note" placeholder="Bijvoorbeeld voorschot of restbetaling"></div>
                 <button class="button" type="submit">Betaling registreren</button>
             </form>
+        <?php elseif (!$isFinanceView && $isTest && (float) $reservation['total_price'] <= 0): ?>
+            <p class="help mt-18">Aan deze test is geen kost gekoppeld.</p>
         <?php elseif (!$isFinanceView && (float) $reservation['total_price'] <= 0): ?>
             <div class="alert alert-warning mt-18">Stel hierboven eerst de totaalprijs in om een betaling te kunnen registreren.</div>
         <?php elseif (!$isFinanceView): ?>
@@ -817,4 +803,6 @@ render_header(($isReplacement ? 'Vervangfiets #' : 'Verhuur #') . $id);
     <?php endif; ?>
     <?php endif; ?>
 </section>
+<link rel="stylesheet" href="assets/id-camera.css?v=<?= (int)filemtime(__DIR__ . '/assets/id-camera.css') ?>">
+<script src="assets/id-camera.js?v=<?= (int)filemtime(__DIR__ . '/assets/id-camera.js') ?>" defer></script>
 <?php render_footer();

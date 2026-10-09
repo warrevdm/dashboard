@@ -316,7 +316,8 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
     bikeSelect.addEventListener('change', markPriceStale);
-    refreshAvailability();
+    // PHP already rendered availability for this period. Other forms retain their initial refresh.
+    if (reservationForm.dataset.availabilityReady !== '1') refreshAvailability();
   }
 
   if (priceButton) {
