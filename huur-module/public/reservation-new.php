@@ -405,4 +405,6 @@ render_header('Nieuwe verhuur');
         <p class="help rental-contract-note">Bij Huur ga je na opslaan naar het gezamenlijke contract. Bij Test of Vervang open je het dossier.</p>
     </aside>
 </form>
+<link rel="stylesheet" href="assets/id-camera.css?v=<?= (int)filemtime(__DIR__ . '/assets/id-camera.css') ?>">
+<script src="assets/id-camera.js?v=<?= (int)filemtime(__DIR__ . '/assets/id-camera.js') ?>" defer></script>
 <?php render_footer();
