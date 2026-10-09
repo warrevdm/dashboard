@@ -472,3 +472,13 @@
         min-height: 140px;
     }
 }
+
+/* Keep the bike picker compact until the employee opens step 2. */
+.rental-bike-disclosure > summary { cursor: pointer; list-style: none; align-items: center; }
+.rental-bike-disclosure > summary::-webkit-details-marker { display: none; }
+.rental-bike-disclosure:not([open]) > summary { margin-bottom: 0; }
+.rental-bike-disclosure > summary:focus-visible { outline: 3px solid #60bb46; outline-offset: 6px; border-radius: 8px; }
+.rental-disclosure-toggle { flex: 0 0 auto; color: #245f21; font-weight: 700; }
+.rental-disclosure-toggle::before { content: 'Uitklappen +'; }
+.rental-bike-disclosure[open] .rental-disclosure-toggle::before { content: 'Inklappen −'; }
+@media (max-width: 700px) { .rental-bike-disclosure > summary { flex-wrap: wrap; } }

@@ -20,6 +20,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (!select) return;
 
+  // Reveal the required picker before the browser focuses an invalid selection.
+  select.addEventListener('invalid', () => {
+    const disclosure = form.querySelector('[data-bike-disclosure]');
+    if (disclosure) disclosure.open = true;
+  });
+
   const optionById = (id) => select.querySelector(`option[value="${CSS.escape(String(id))}"]`);
 
   const euro = (value) => new Intl.NumberFormat('nl-BE', {

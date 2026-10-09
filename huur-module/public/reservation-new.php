@@ -233,8 +233,8 @@ render_header('Nieuwe verhuur');
             <div class="availability-message <?= $availabilityReady ? 'availability-success' : 'availability-warning' ?>" data-availability-message aria-live="polite"><?= $availabilityReady ? count(array_filter($availability, static fn (array $state): bool => $state['available'])) . ' fiets(en) beschikbaar.' : 'Kies een geldige huurperiode.' ?></div>
         </section>
 
-        <section class="card rental-step-card">
-            <div class="rental-step-heading rental-step-heading-split">
+        <details class="card rental-step-card rental-bike-disclosure" data-bike-disclosure>
+            <summary class="rental-step-heading rental-step-heading-split">
                 <div class="rental-step-heading-main">
                     <span class="rental-step-number">2</span>
                     <div>
@@ -243,7 +243,8 @@ render_header('Nieuwe verhuur');
                     </div>
                 </div>
                 <span class="rental-selected-count" data-rental-selected-count>0 geselecteerd</span>
-            </div>
+                <span class="rental-disclosure-toggle" aria-hidden="true"></span>
+            </summary>
 
             <div class="rental-bike-toolbar">
                 <input type="search" placeholder="Zoek code, model of categorie…" data-rental-bike-search aria-label="Fiets zoeken">
@@ -323,7 +324,7 @@ render_header('Nieuwe verhuur');
                     </button>
                 <?php endforeach; ?>
             </div>
-        </section>
+        </details>
 
         <section class="card rental-step-card">
             <div class="rental-step-heading">
