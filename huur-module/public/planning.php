@@ -5,6 +5,7 @@ declare(strict_types=1);
 $planningStartedAt = microtime(true);
 require_once __DIR__ . '/../app/bootstrap.php';
 require_auth();
+require_once __DIR__ . '/../app/overdue_rentals.php';
 $planningBootstrapMs = (microtime(true) - $planningStartedAt) * 1000;
 
 // Save the logout token and consume flashes before releasing the session lock.
@@ -122,6 +123,7 @@ if ($focus !== '') {
         static fn (array $event): bool => in_array((int) $event['id'], $focusReservationIds, true)
     ));
 }
+$overdue = overdue_rentals(db(), new DateTimeImmutable());
 $counts = reservation_counts();
 $byBike = [];
 foreach ($events as $event) {
@@ -141,6 +143,7 @@ $focusLabels = [
 header('Server-Timing: bootstrap;dur=' . number_format($planningBootstrapMs, 3, '.', '')
     . ', data;dur=' . number_format((microtime(true) - $planningDataStartedAt) * 1000, 3, '.', ''));
 echo $planningHeader;
+render_overdue_rentals($overdue);
 ?>
 <?php if (is_admin()): ?><div class="actions" style="margin-bottom:16px"><a class="button button-secondary" href="daily-rental-mail-admin.php">✉ Dagmail · Nu versturen</a></div><?php endif; ?>
 <section class="grid planning-stats" aria-label="Snelfilters planning">

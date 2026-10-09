@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../app/bootstrap.php';
 require_auth();
+require_once __DIR__ . '/../app/overdue_rentals.php';
 require_once __DIR__ . '/../app/reservation_edit.php';
 require_once __DIR__ . '/../app/reservation_documents.php';
 
@@ -311,6 +312,7 @@ $editValues = $editInput ?? [
 ];
 
 render_header(($isReplacement ? 'Vervangfiets #' : ($isTest ? 'Testreservatie #' : 'Verhuur #')) . $id);
+render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
 ?>
 <?php if ($isFinanceView): ?>
     <div class="actions mb-18">
