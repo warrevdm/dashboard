@@ -100,6 +100,7 @@ let php;
     { page: 'reservation-new.php', actor: staff, data: fullData, defaultKind: 'rental' },
     { page: 'reservation-new.php', actor: finance, data: fullData, defaultKind: 'rental' },
     { page: 'quick-replacement.php', actor: admin, data: quickData, defaultKind: 'replacement' },
+    { page: 'quick-replacement.php', actor: staff, data: quickData, defaultKind: 'replacement' },
   ];
 
   // Validate server-rendered choices and defaults, without requiring client-side JavaScript.
@@ -124,10 +125,7 @@ let php;
       check(rejected.httpStatusCode === 419, `${page}: missing, wrong or array CSRF rejected`);
     }
   }
-  for (const method of ['GET', 'POST']) {
-    const denied = await request('quick-replacement.php', { jar: staff.jar, method, data: { ...quickData, _token: staff.token, rental_kind: 'test' } });
-    check(denied.httpStatusCode === 403, `Quick creation still requires its original access rights for ${method}`);
-  }
+  check((await request('planning.php', { jar: staff.jar })).text.includes('href="quick-replacement.php"'), 'Staff navigation shows quick replacement');
   check((await request('quick-replacement.php', { jar: workshop.jar })).httpStatusCode === 200, 'Existing workshop account retains quick-form access');
   check(JSON.stringify(await state()) === empty, 'GETs and rejected authorization or CSRF requests create no records');
 
@@ -176,7 +174,7 @@ let php;
   }
   for (const kind of ['rental', 'test', 'replacement']) {
     await reset();
-    const response = await request('quick-replacement.php', { jar: admin.jar, method: 'POST', data: { ...quickData, _token: admin.token, rental_kind: kind } });
+    const response = await request('quick-replacement.php', { jar: staff.jar, method: 'POST', data: { ...quickData, _token: staff.token, rental_kind: kind } });
     const saved = await state();
     check(saved.reservations.length === 1 && saved.customers.length === 1, `Quick ${kind}: creates exactly one dossier and customer`);
     const reservation = saved.reservations[0];

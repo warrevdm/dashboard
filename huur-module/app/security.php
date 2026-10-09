@@ -82,11 +82,7 @@ function can_use_quick_replacement(): bool
         return false;
     }
 
-    if (($user['role'] ?? '') === 'admin') {
-        return true;
-    }
-
-    return strtolower(trim((string) ($user['email'] ?? ''))) === 'berten@aertsactionbike.be';
+    return in_array($user['role'] ?? '', ['admin', 'staff'], true);
 }
 
 function require_quick_replacement(): void

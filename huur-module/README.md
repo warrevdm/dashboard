@@ -12,6 +12,7 @@ PHP 8.2-module voor interne fietsverhuur, planning, betalingen, contractopmaak e
 - Live beschikbaarheidscontrole bij het kiezen van de huurperiode.
 - Eén verhuurdossier kan meerdere fietsen tegelijk bevatten.
 - Type Huur/Test/Vervang kiezen bij zowel Nieuwe verhuur als Snelle vervangfiets.
+- Snelle vervangfiets is beschikbaar voor alle medewerkers en beheerders.
 - Bestaande dossiers bewerken: start- en einddatum met uren, type Huur/Test/Vervang, klantgegevens, status en notities.
 - Eén gezamenlijk contract vermeldt alle fietsen, framenummers, maten en dagprijzen.
 - Betalingslog met bedrag, Bancontact of cash, medewerker en tijdstip.
