@@ -313,9 +313,10 @@ function sign_contract(array $contract, string $signerName, string $signatureDat
              signed_at=:signed_at, signer_ip=:signer_ip, signer_user_agent=:signer_user_agent,
              signed_contract_html=:signed_contract_html, signed_hash=:signed_hash,
              public_token_hash=NULL, public_token_expires_at=NULL, updated_at=CURRENT_TIMESTAMP
-             WHERE id=:id AND signed_at IS NULL'
+             WHERE id=:id AND signed_at IS NULL AND contract_hash=:expected_hash'
         );
         $stmt->execute([
+            ':expected_hash' => $contract['contract_hash'],
             ':signer_name' => $signerName,
             ':signature_stored_name' => $signatureName,
             ':signed_at' => $signedAt->format('Y-m-d H:i:s'),

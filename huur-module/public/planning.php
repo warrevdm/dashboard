@@ -2,14 +2,29 @@
 
 declare(strict_types=1);
 
+$planningStartedAt = microtime(true);
 require_once __DIR__ . '/../app/bootstrap.php';
 require_auth();
+require_once __DIR__ . '/../app/overdue_rentals.php';
+$planningBootstrapMs = (microtime(true) - $planningStartedAt) * 1000;
+
+// Save the logout token and consume flashes before releasing the session lock.
+ob_start();
+render_header('Verhuurplanning', true, 'planning');
+$planningHeader = (string) ob_get_clean();
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+header('Cache-Control: no-store, private');
+$planningDataStartedAt = microtime(true);
 
 $days = max(7, min(28, (int) ($_GET['days'] ?? 14)));
 $start = DateTimeImmutable::createFromFormat('!Y-m-d', (string) ($_GET['start'] ?? date('Y-m-d'))) ?: new DateTimeImmutable('today');
 $end = $start->modify("+{$days} days");
 $allBikes = all_bikes(true);
 $selectedCategory = trim((string) ($_GET['category'] ?? ''));
+$selectedUsage = (string) ($_GET['usage'] ?? '');
+$selectedUsage = in_array($selectedUsage, ['rental', 'test', 'replacement'], true) ? $selectedUsage : '';
 $focus = (string) ($_GET['focus'] ?? '');
 $focus = in_array($focus, ['pickups', 'returns', 'active'], true) ? $focus : '';
 $today = date('Y-m-d');
@@ -72,7 +87,7 @@ if ($focus !== '') {
         $bikeStmt = db()->prepare(
             "SELECT DISTINCT bike_id
              FROM reservation_bikes
-             WHERE reservation_id IN ({$placeholders})"
+             WHERE returned_at IS NULL AND reservation_id IN ({$placeholders})"
         );
         $bikeStmt->execute($focusReservationIds);
         $focusBikeIds = array_map('intval', $bikeStmt->fetchAll(PDO::FETCH_COLUMN));
@@ -93,19 +108,29 @@ $bikes = $selectedCategory === ''
         static fn (array $bike): bool => (string) ($bike['category'] ?? '') === $selectedCategory
     ));
 
+if ($selectedUsage !== '') {
+    $bikes = array_values(array_filter($bikes, static function (array $bike) use ($selectedUsage): bool {
+        $usage = (string) ($bike['usage_type'] ?? 'rental');
+        return $usage === $selectedUsage
+            || ($usage === 'replacement_rental' && in_array($selectedUsage, ['rental', 'replacement'], true));
+    }));
+}
+
 $events = reservations_for_range($start, $end);
 if ($focus !== '') {
     $events = array_values(array_filter(
         $events,
-        static fn (array $event): bool => in_array((int) $event['id'], $focusReservationIds, true)
+        static fn (array $event): bool => $event['status'] !== 'returned' && in_array((int) $event['id'], $focusReservationIds, true)
     ));
 }
+$overdue = overdue_rentals(db(), new DateTimeImmutable());
 $counts = reservation_counts();
 $byBike = [];
 foreach ($events as $event) {
     $byBike[(int) $event['bike_id']][] = $event;
 }
 
+$usageParam = $selectedUsage !== '' ? '&usage=' . rawurlencode($selectedUsage) : '';
 $categoryParam = $selectedCategory !== '' ? '&category=' . rawurlencode($selectedCategory) : '';
 $focusParam = $focus !== '' ? '&focus=' . rawurlencode($focus) : '';
 $focusLabels = [
@@ -114,20 +139,25 @@ $focusLabels = [
     'active' => 'Verhuren onderweg',
 ];
 
-render_header('Verhuurplanning');
+// These phases exclude network time and the PHP-worker queue.
+header('Server-Timing: bootstrap;dur=' . number_format($planningBootstrapMs, 3, '.', '')
+    . ', data;dur=' . number_format((microtime(true) - $planningDataStartedAt) * 1000, 3, '.', ''));
+echo $planningHeader;
+render_overdue_rentals($overdue);
 ?>
+<?php if (is_admin()): ?><div class="actions" style="margin-bottom:16px"><a class="button button-secondary" href="daily-rental-mail-admin.php">✉ Dagmail · Nu versturen</a></div><?php endif; ?>
 <section class="grid planning-stats" aria-label="Snelfilters planning">
-    <a class="card col-4 planning-stat-card <?= $focus === 'pickups' ? 'is-active' : '' ?>" href="planning.php?focus=pickups<?= e($categoryParam) ?>">
+    <a class="card col-4 planning-stat-card <?= $focus === 'pickups' ? 'is-active' : '' ?>" href="planning.php?focus=pickups<?= e($categoryParam . $usageParam) ?>">
         <span class="stat"><?= (int) ($counts['pickups'] ?? 0) ?></span>
         <span class="muted">afhalingen vandaag</span>
         <span class="planning-stat-action">Toon fietsen →</span>
     </a>
-    <a class="card col-4 planning-stat-card <?= $focus === 'returns' ? 'is-active' : '' ?>" href="planning.php?focus=returns<?= e($categoryParam) ?>">
+    <a class="card col-4 planning-stat-card <?= $focus === 'returns' ? 'is-active' : '' ?>" href="planning.php?focus=returns<?= e($categoryParam . $usageParam) ?>">
         <span class="stat"><?= (int) ($counts['returns'] ?? 0) ?></span>
         <span class="muted">retours vandaag</span>
         <span class="planning-stat-action">Toon fietsen →</span>
     </a>
-    <a class="card col-4 planning-stat-card <?= $focus === 'active' ? 'is-active' : '' ?>" href="planning.php?focus=active<?= e($categoryParam) ?>">
+    <a class="card col-4 planning-stat-card <?= $focus === 'active' ? 'is-active' : '' ?>" href="planning.php?focus=active<?= e($categoryParam . $usageParam) ?>">
         <span class="stat"><?= (int) ($counts['active'] ?? 0) ?></span>
         <span class="muted">verhuren onderweg</span>
         <span class="planning-stat-action">Toon fietsen →</span>
@@ -138,28 +168,35 @@ render_header('Verhuurplanning');
     <div class="planning-toolbar">
         <div class="actions">
             <?php if ($focus !== ''): ?>
-                <a class="button button-secondary" href="planning.php?days=14<?= e($categoryParam) ?>">← Volledige planning</a>
+                <a class="button button-secondary" href="planning.php?days=14<?= e($categoryParam . $usageParam) ?>">← Volledige planning</a>
                 <span class="planning-focus-label"><?= e($focusLabels[$focus]) ?> · volledige huurperiode</span>
             <?php else: ?>
-                <a class="button button-secondary" href="planning.php?start=<?= e($start->modify("-{$days} days")->format('Y-m-d')) ?>&amp;days=<?= $days ?><?= e($categoryParam) ?>">← Vorige</a>
-                <a class="button button-secondary" href="planning.php?days=<?= $days ?><?= e($categoryParam) ?>">Vandaag</a>
-                <a class="button button-secondary" href="planning.php?start=<?= e($end->format('Y-m-d')) ?>&amp;days=<?= $days ?><?= e($categoryParam) ?>">Volgende →</a>
+                <a class="button button-secondary" href="planning.php?start=<?= e($start->modify("-{$days} days")->format('Y-m-d')) ?>&amp;days=<?= $days ?><?= e($categoryParam . $usageParam) ?>">← Vorige</a>
+                <a class="button button-secondary" href="planning.php?days=<?= $days ?><?= e($categoryParam . $usageParam) ?>">Vandaag</a>
+                <a class="button button-secondary" href="planning.php?start=<?= e($end->format('Y-m-d')) ?>&amp;days=<?= $days ?><?= e($categoryParam . $usageParam) ?>">Volgende →</a>
             <?php endif; ?>
         </div>
         <div class="actions">
-            <a href="planning.php?days=7<?= e($categoryParam) ?>">7 dagen</a>
-            <a href="planning.php?days=14<?= e($categoryParam) ?>">14 dagen</a>
-            <a href="planning.php?days=28<?= e($categoryParam) ?>">28 dagen</a>
+            <a href="planning.php?days=7<?= e($categoryParam . $usageParam) ?>">7 dagen</a>
+            <a href="planning.php?days=14<?= e($categoryParam . $usageParam) ?>">14 dagen</a>
+            <a href="planning.php?days=28<?= e($categoryParam . $usageParam) ?>">28 dagen</a>
             <a class="button" href="reservation-new.php">+ Nieuwe verhuur</a>
         </div>
+    </div>
+
+    <div class="planning-category-filter" aria-label="Filter planning op fietstype">
+        <span class="legend-title">Fietstype:</span>
+        <?php foreach (['' => 'Alles', 'rental' => 'Huur', 'test' => 'Test', 'replacement' => 'Vervang'] as $usage => $label): ?>
+            <a class="button <?= $selectedUsage === $usage ? '' : 'button-secondary' ?>" <?= $selectedUsage === $usage ? 'aria-current="true"' : '' ?> href="planning.php?start=<?= e($start->format('Y-m-d')) ?>&amp;days=<?= $days ?><?= e($categoryParam . $focusParam) ?><?= $usage !== '' ? '&amp;usage=' . rawurlencode($usage) : '' ?>"><?= e($label) ?></a>
+        <?php endforeach; ?>
     </div>
 
     <?php if ($categories): ?>
         <div class="planning-category-filter" aria-label="Filter planning op soort fiets">
             <span class="legend-title">Soort fiets:</span>
-            <a class="button <?= $selectedCategory === '' ? '' : 'button-secondary' ?>" href="planning.php?start=<?= e($start->format('Y-m-d')) ?>&amp;days=<?= $days ?><?= e($focusParam) ?>">Alles</a>
+            <a class="button <?= $selectedCategory === '' ? '' : 'button-secondary' ?>" href="planning.php?start=<?= e($start->format('Y-m-d')) ?>&amp;days=<?= $days ?><?= e($focusParam . $usageParam) ?>">Alles</a>
             <?php foreach ($categories as $category): ?>
-                <a class="button <?= $selectedCategory === $category ? '' : 'button-secondary' ?>" href="planning.php?start=<?= e($start->format('Y-m-d')) ?>&amp;days=<?= $days ?>&amp;category=<?= rawurlencode($category) ?><?= e($focusParam) ?>"><?= e($category) ?></a>
+                <a class="button <?= $selectedCategory === $category ? '' : 'button-secondary' ?>" href="planning.php?start=<?= e($start->format('Y-m-d')) ?>&amp;days=<?= $days ?>&amp;category=<?= rawurlencode($category) ?><?= e($focusParam . $usageParam) ?>"><?= e($category) ?></a>
             <?php endforeach; ?>
             <span class="muted"><?= count($bikes) ?> van <?= count($allBikes) ?> fiets(en) zichtbaar</span>
         </div>
@@ -172,7 +209,8 @@ render_header('Verhuurplanning');
         <?php endforeach; ?>
         <span class="legend-title">Type:</span>
         <span class="legend-item"><i class="booking-kind booking-kind-rental">€</i>Huurfiets · betaling</span>
-        <span class="legend-item"><i class="booking-kind booking-kind-replacement">↺</i>Vervangfiets · geen huurbetaling</span>
+        <span class="legend-item"><i class="booking-kind booking-kind-test">T</i>Test</span>
+        <span class="legend-item"><i class="booking-kind booking-kind-replacement">↺</i>Vervangfiets · eventuele kost</span>
         <span class="legend-title">Dossier:</span>
         <span class="legend-item"><i class="booking-status-icon booking-contract-signed">✍✓</i>Contract ondertekend</span>
         <span class="legend-item"><i class="booking-status-icon booking-contract-open">✍!</i>Nog niet ondertekend</span>
@@ -190,7 +228,7 @@ render_header('Verhuurplanning');
         <div class="alert alert-warning">Voeg eerst een fiets toe.</div>
         <a class="button" href="bikes.php">Fiets toevoegen</a>
     <?php elseif (!$bikes): ?>
-        <div class="alert alert-warning"><?= $focus !== '' ? 'Geen fietsen gevonden voor ' . e(strtolower($focusLabels[$focus])) . '.' : 'Geen fietsen gevonden voor deze categorie.' ?></div>
+        <div class="alert alert-warning"><?= $focus !== '' ? 'Geen fietsen gevonden voor ' . e(strtolower($focusLabels[$focus])) . '.' : 'Geen fietsen gevonden voor deze filters.' ?></div>
     <?php else: ?>
         <div class="planning-wrap"><table class="planning">
             <thead><tr><th class="bike-cell">Fiets</th>
@@ -233,14 +271,14 @@ render_header('Verhuurplanning');
                             $contractSigned = !empty($active['contract_signed_at']);
                             $rentalKind = (string) ($active['rental_kind'] ?? 'rental');
                             $isReplacement = $rentalKind === 'replacement';
-                            $kindLabel = $isReplacement ? 'Vervang' : 'Huur';
-                            $kindIcon = $isReplacement ? '↺' : '€';
+                            $kindLabel = rental_kind_label($rentalKind);
+                            $kindIcon = rental_kind_icon($rentalKind);
                             $totalPrice = round((float) ($active['total_price'] ?? 0), 2);
                             $paidAmount = round((float) ($active['paid_amount'] ?? 0), 2);
-                            if ($isReplacement && $totalPrice <= 0) {
+                            if (in_array($rentalKind, ['test', 'replacement'], true) && $totalPrice <= 0) {
                                 $paymentClass = 'booking-payment-not-required';
                                 $paymentIcon = '€0';
-                                $paymentTitle = 'Geen kost gekoppeld aan deze vervangfiets';
+                                $paymentTitle = $isReplacement ? 'Geen kost gekoppeld aan deze vervangfiets' : 'Geen kost gekoppeld aan deze test';
                             } elseif ($totalPrice <= 0) {
                                 $paymentClass = 'booking-payment-unpriced';
                                 $paymentIcon = '€—';
@@ -260,9 +298,9 @@ render_header('Verhuurplanning');
                             }
                     ?>
                         <td colspan="<?= $span ?>">
-                            <a class="booking-block booking-type-<?= $isReplacement ? 'replacement' : 'rental' ?> status-<?= e($active['status']) ?>" href="reservation.php?id=<?= (int) $active['id'] ?>" data-customer-name="<?= e($active['customer_name']) ?>" title="<?= e($active['customer_name']) ?> · <?= e($kindLabel) ?> · <?= e((new DateTimeImmutable($active['start_at']))->format('d/m/Y H:i')) ?> → <?= e($activeEnd->format('d/m/Y H:i')) ?>">
+                            <a class="booking-block booking-type-<?= e($rentalKind) ?> status-<?= e($active['status']) ?>" href="reservation.php?id=<?= (int) $active['id'] ?>" data-customer-name="<?= e($active['customer_name']) ?>" title="<?= e($active['customer_name']) ?> · <?= e($kindLabel) ?> · <?= e((new DateTimeImmutable($active['start_at']))->format('d/m/Y H:i')) ?> → <?= e($activeEnd->format('d/m/Y H:i')) ?>">
                                 <span class="booking-kind-row">
-                                    <span class="booking-kind booking-kind-<?= $isReplacement ? 'replacement' : 'rental' ?>"><span aria-hidden="true"><?= e($kindIcon) ?></span> <?= e($kindLabel) ?></span>
+                                    <span class="booking-kind booking-kind-<?= e($rentalKind) ?>"><span aria-hidden="true"><?= e($kindIcon) ?></span> <?= e($kindLabel) ?></span>
                                     <?php if ($isReplacement): ?><span class="booking-no-payment"><?= $totalPrice > 0 ? 'kost € ' . number_format($totalPrice, 2, ',', '.') : 'geen kost' ?></span><?php endif; ?>
                                 </span>
                                 <span class="booking-title-row">
@@ -293,4 +331,4 @@ render_header('Verhuurplanning');
         </table></div>
     <?php endif; ?>
 </section>
-<?php render_footer();
+<?php render_footer('planning');

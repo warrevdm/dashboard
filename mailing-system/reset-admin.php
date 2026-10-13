@@ -94,8 +94,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(authCsrfToken(), ENT_QUOTES, 'UTF-8') ?>">
                 <div class="field"><label for="reset_key">Reset-sleutel</label><input id="reset_key" name="reset_key" type="password" required autocomplete="off"></div>
                 <div class="field"><label for="email">Admin e-mailadres</label><input id="email" name="email" type="email" maxlength="190" required autocomplete="username"></div>
-                <div class="field"><label for="password">Nieuw wachtwoord</label><input id="password" name="password" type="password" minlength="14" maxlength="128" required autocomplete="new-password"><small>Minstens 14 tekens en uniek voor dit systeem.</small></div>
-                <div class="field"><label for="password_confirm">Nieuw wachtwoord herhalen</label><input id="password_confirm" name="password_confirm" type="password" minlength="14" maxlength="128" required autocomplete="new-password"></div>
+                <div class="field"><label for="password">Nieuw wachtwoord</label><input id="password" name="password" type="password" maxlength="128" required autocomplete="new-password"><small>Gebruik een uniek wachtwoord.</small></div>
+                <div class="field"><label for="password_confirm">Nieuw wachtwoord herhalen</label><input id="password_confirm" name="password_confirm" type="password" maxlength="128" required autocomplete="new-password"></div>
                 <button type="submit" class="button button-primary auth-submit">Wachtwoord resetten</button>
             </form>
         <?php endif; ?>
