@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS reservations (
     start_at TEXT NOT NULL,
     end_at TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'reserved' CHECK(status IN ('reserved', 'confirmed', 'picked_up', 'returned', 'cancelled')),
-    rental_kind TEXT NOT NULL DEFAULT 'rental' CHECK(rental_kind IN ('rental', 'replacement')),
+    rental_kind TEXT NOT NULL DEFAULT 'rental' CHECK(rental_kind IN ('rental', 'test', 'replacement')),
     total_price REAL NOT NULL DEFAULT 0,
     replacement_cost_note TEXT,
     notes TEXT,
@@ -88,6 +88,8 @@ CREATE TABLE IF NOT EXISTS reservation_bikes (
     reservation_id INTEGER NOT NULL,
     bike_id INTEGER NOT NULL,
     daily_rate REAL NOT NULL DEFAULT 0,
+    returned_at TEXT,
+    returned_by INTEGER,
     PRIMARY KEY (reservation_id, bike_id),
     FOREIGN KEY (reservation_id) REFERENCES reservations(id) ON DELETE CASCADE,
     FOREIGN KEY (bike_id) REFERENCES bikes(id)

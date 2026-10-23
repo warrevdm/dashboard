@@ -64,8 +64,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="field"><label for="setup_key">Setup-sleutel</label><input id="setup_key" name="setup_key" type="password" required autocomplete="off"></div>
                 <div class="field"><label for="name">Naam admin</label><input id="name" name="name" type="text" maxlength="100" required></div>
                 <div class="field"><label for="email">E-mailadres</label><input id="email" name="email" type="email" maxlength="190" required></div>
-                <div class="field"><label for="password">Wachtwoord</label><input id="password" name="password" type="password" maxlength="128" minlength="14" required autocomplete="new-password"><small>Minstens 14 tekens. Gebruik een uniek wachtwoord.</small></div>
-                <div class="field"><label for="password_confirm">Wachtwoord herhalen</label><input id="password_confirm" name="password_confirm" type="password" maxlength="128" minlength="14" required autocomplete="new-password"></div>
+                <div class="field"><label for="password">Wachtwoord</label><input id="password" name="password" type="password" maxlength="128" required autocomplete="new-password"><small>Gebruik een uniek wachtwoord.</small></div>
+                <div class="field"><label for="password_confirm">Wachtwoord herhalen</label><input id="password_confirm" name="password_confirm" type="password" maxlength="128" required autocomplete="new-password"></div>
                 <button type="submit" class="button button-primary auth-submit">Admin aanmaken</button>
             </form>
         <?php endif; ?>

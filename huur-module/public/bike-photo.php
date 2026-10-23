@@ -5,6 +5,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/../app/bootstrap.php';
 require_auth();
 
+// Authentication is complete. Image lookup and streaming must not block navigation.
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+
 $id = (int) ($_GET['id'] ?? 0);
 $bike = find_bike($id);
 if (!$bike) {
@@ -22,6 +27,16 @@ $path = ROOT_PATH . '/storage/private/bikes/' . $storedName;
 if (!is_file($path) || !is_readable($path)) {
     http_response_code(404);
     exit('Afbeelding niet gevonden.');
+}
+
+// Generate only when the image itself is requested, never during page rendering.
+$size = bike_image_normalize_size((int) ($_GET['size'] ?? 480));
+$variant = bike_generate_web_variant($bike, $size);
+$imageMode = 'original';
+if ($variant !== null && is_file($variant['cache_path'])) {
+    $path = $variant['cache_path'];
+    $storedName = $variant['filename'];
+    $imageMode = 'webp';
 }
 
 $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
@@ -78,5 +93,5 @@ header('Content-Disposition: inline; filename="' . rawurlencode($storedName) . '
 header('Cache-Control: private, max-age=86400');
 header('ETag: ' . $etag);
 header('X-Content-Type-Options: nosniff');
-header('X-Bike-Image-Mode: original');
+header('X-Bike-Image-Mode: ' . $imageMode);
 readfile($path);

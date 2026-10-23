@@ -8,6 +8,7 @@ const noteCount = document.querySelector('#noteCount');
 const bikeInput = document.querySelector('#bike_type');
 const quickIdCard = document.querySelector('#quickIdCard');
 const quickLeaseABikePin = document.querySelector('#quickLeaseABikePin');
+const quickO2OPin = document.querySelector('#quickO2OPin');
 const quickPickupDate = document.querySelector('#quickPickupDate');
 const pickupDateRow = document.querySelector('#pickupDateRow');
 const pickupDate = document.querySelector('#pickup_date');
@@ -20,6 +21,7 @@ const fields = {
 
 const ID_CARD_MESSAGE = 'Gelieve je identiteitskaart mee te brengen in functie van de leasing.';
 const LEASE_A_BIKE_PIN_MESSAGE = 'Gelieve je pincode van Lease a Bike mee te brengen.';
+const O2O_PIN_MESSAGE = 'Gelieve je pincode van O2O mee te brengen.';
 const PICKUP_PREFIX = 'Je fiets kan opgehaald worden vanaf ';
 
 function escapeHtml(value) {
@@ -51,10 +53,11 @@ function rebuildPickupNote() {
     const lines = note.value
         .split('\n')
         .map(line => line.trim())
-        .filter(line => line !== '' && line !== ID_CARD_MESSAGE && line !== LEASE_A_BIKE_PIN_MESSAGE && !line.startsWith(PICKUP_PREFIX));
+        .filter(line => line !== '' && line !== ID_CARD_MESSAGE && line !== LEASE_A_BIKE_PIN_MESSAGE && line !== O2O_PIN_MESSAGE && !line.startsWith(PICKUP_PREFIX));
 
     if (quickIdCard.classList.contains('active')) lines.unshift(ID_CARD_MESSAGE);
     if (quickLeaseABikePin.classList.contains('active')) lines.unshift(LEASE_A_BIKE_PIN_MESSAGE);
+    if (quickO2OPin?.classList.contains('active')) lines.unshift(O2O_PIN_MESSAGE);
     if (quickPickupDate.classList.contains('active') && pickupDate.value) {
         lines.push(`${PICKUP_PREFIX}${formatDateNl(pickupDate.value)}.`);
     }
@@ -125,6 +128,10 @@ quickIdCard.addEventListener('click', () => {
 });
 quickLeaseABikePin.addEventListener('click', () => {
     setQuickActive(quickLeaseABikePin, !quickLeaseABikePin.classList.contains('active'));
+    rebuildPickupNote();
+});
+quickO2OPin?.addEventListener('click', () => {
+    setQuickActive(quickO2OPin, !quickO2OPin.classList.contains('active'));
     rebuildPickupNote();
 });
 quickPickupDate.addEventListener('click', () => {

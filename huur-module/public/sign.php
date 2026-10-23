@@ -10,7 +10,19 @@ header('Referrer-Policy: no-referrer');
 header('X-Robots-Tag: noindex, nofollow, noarchive');
 
 $token = trim((string) ($_GET['token'] ?? $_POST['token'] ?? ''));
-$contract = find_contract_by_token($token);
+$internal = isset($_GET['contract_id']) || isset($_POST['contract_id']);
+if ($internal) {
+    require_once __DIR__ . '/../app/tablet_contracts.php';
+    require_tablet_contract_access();
+    $contract = find_contract_by_id((int) ($_GET['contract_id'] ?? $_POST['contract_id'] ?? 0));
+    if ($contract && empty($contract['signed_at'])) {
+        $reservation = contract_reservation_data((int) $contract['reservation_id']);
+        if (!$reservation || $reservation['status'] === 'cancelled') $contract = null;
+    }
+} else {
+    $contract = find_contract_by_token($token);
+}
+$signPage = $internal && $contract ? 'sign.php?contract_id=' . (int) $contract['id'] : 'sign.php?token=' . rawurlencode($token);
 
 if (!$contract) {
     http_response_code(404);
@@ -22,10 +34,14 @@ if (!$contract) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($contract['signed_at'])) {
     verify_csrf();
+    if ($internal && (!is_string($_POST['contract_hash'] ?? null) || !hash_equals((string) $contract['contract_hash'], $_POST['contract_hash']))) {
+        http_response_code(409);
+        exit('Het contract is gewijzigd. Open het opnieuw vanuit het overzicht en controleer de nieuwe inhoud.');
+    }
 
     if (($_POST['accept_contract'] ?? '') !== '1') {
         flash('error', 'Bevestig dat u de overeenkomst gelezen heeft en ermee akkoord gaat.');
-        redirect('sign.php?token=' . rawurlencode($token));
+        redirect($signPage);
     }
 
     try {
@@ -34,9 +50,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($contract['signed_at'])) {
             (string) ($_POST['signer_name'] ?? ''),
             (string) ($_POST['signature_data'] ?? '')
         );
+        if ($internal) redirect($signPage);
     } catch (Throwable $e) {
         flash('error', $e instanceof RuntimeException ? $e->getMessage() : 'Ondertekenen is mislukt.');
-        redirect('sign.php?token=' . rawurlencode($token));
+        redirect($signPage);
     }
 }
 
@@ -44,6 +61,7 @@ render_public_contract_header(empty($contract['signed_at']) ? 'Huurovereenkomst 
 $flashes = take_flashes();
 ?>
 <div class="contract-shell">
+    <?php if ($internal): ?><div class="tablet-return"><a class="button button-secondary" href="contracts.php">Medewerker: terug naar contractoverzicht</a></div><?php endif; ?>
     <?php foreach ($flashes as $flash): ?>
         <div class="alert alert-<?= e($flash['type']) ?>"><?= e($flash['message']) ?></div>
     <?php endforeach; ?>
@@ -74,6 +92,7 @@ $flashes = take_flashes();
 
         <form method="post" class="signature-form" id="signature-form">
             <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
+            <?php if ($internal): ?><input type="hidden" name="contract_id" value="<?= (int) $contract['id'] ?>"><input type="hidden" name="contract_hash" value="<?= e($contract['contract_hash']) ?>"><?php endif; ?>
             <input type="hidden" name="token" value="<?= e($token) ?>">
             <input type="hidden" name="signature_data" id="signature-data">
 
@@ -118,6 +137,7 @@ function render_public_contract_header(string $title): void
         <title><?= e($title) ?> · Aerts Action Bike</title>
         <link rel="stylesheet" href="assets/styles.css?v=<?= e($stylesVersion) ?>">
         <link rel="stylesheet" href="assets/contract.css?v=<?= e($contractVersion) ?>">
+        <link rel="stylesheet" href="assets/tablet-contracts.css">
     </head>
     <body class="contract-page">
     <header class="public-contract-header">
