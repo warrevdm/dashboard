@@ -145,7 +145,7 @@ header('Server-Timing: bootstrap;dur=' . number_format($planningBootstrapMs, 3, 
 echo $planningHeader;
 render_overdue_rentals($overdue);
 ?>
-<?php if (is_admin()): ?><div class="actions" style="margin-bottom:16px"><a class="button button-secondary" href="daily-rental-mail-admin.php">✉ Dagmail · Nu versturen</a></div><?php endif; ?>
+<?php if (is_admin()): ?><div class="actions planning-mail-actions"><a class="button button-secondary" href="daily-rental-mail-admin.php">✉ Dagmail · Nu versturen</a></div><?php endif; ?>
 <section class="grid planning-stats" aria-label="Snelfilters planning">
     <a class="card col-4 planning-stat-card <?= $focus === 'pickups' ? 'is-active' : '' ?>" href="planning.php?focus=pickups<?= e($categoryParam . $usageParam) ?>">
         <span class="stat"><?= (int) ($counts['pickups'] ?? 0) ?></span>
