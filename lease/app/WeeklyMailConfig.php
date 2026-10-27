@@ -4,7 +4,14 @@ final class WeeklyMailConfig
 {
     public static function load(): array
     {
-        return require __DIR__ . '/../config/weekly-mail.php';
+        $config = require __DIR__ . '/../config/weekly-mail.php';
+        require_once __DIR__ . '/WeeklyMailAutomation.php';
+        $settings = WeeklyMailAutomation::read($config['state_directory']);
+        if ($settings !== null) {
+            $config['enabled'] = $settings['enabled'];
+            $config['send_hour'] = 9;
+        }
+        return $config;
     }
 
     public static function recipients(array $config): array

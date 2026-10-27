@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../app/Database.php';
 require_once __DIR__ . '/../app/WeeklyMailRunner.php';
 require_once __DIR__ . '/../app/WeeklySmtpMailer.php';
+require_once __DIR__ . '/../app/WeeklyMailAutomation.php';
 
 $pdo = Database::connect();
 $now = new DateTimeImmutable('now', new DateTimeZone('Europe/Brussels'));
@@ -16,6 +17,17 @@ try {
 $orders = ExpiringContracts::find($pdo, $now, true);
 $preview = WeeklyMailConfig::validBaseUrl((string) $config['base_url'])
     ? WeeklyMailMessage::build($orders, $now, $config['base_url']) : null;
+$cronUrl = null;
+try {
+    $automation = WeeklyMailAutomation::initialize($config);
+    $config['enabled'] = $automation['enabled'];
+    $config['send_hour'] = 9;
+    if (WeeklyMailConfig::validBaseUrl((string)$config['base_url'])) {
+        $cronUrl = rtrim($config['base_url'], '/') . '/weekly-mail-cron.php?key=' . rawurlencode($automation['key']);
+    }
+} catch (Throwable $error) {
+    $errors[] = 'De croninstellingen konden niet worden voorbereid. Controleer de opslagrechten of probeer later opnieuw.';
+}
 $enabled = ($config['enabled'] ?? false) === true;
 $lastWeek = null;
 $lastEntries = [];
@@ -76,6 +88,20 @@ function e($value): string
                 <strong>Nog te controleren</strong>
                 <ul><?php foreach ($errors as $error): ?><li><?= e($error) ?></li><?php endforeach; ?></ul>
             </div>
+        <?php endif; ?>
+        <form method="POST" action="update-weekly-mail.php">
+            <?= Auth::csrfField() ?>
+            <input type="hidden" name="enabled" value="<?= $enabled ? '0' : '1' ?>">
+            <button type="submit" <?= !$enabled && $errors ? 'disabled' : '' ?>><?= $enabled ? 'Automatische dinsdagmail uitschakelen' : 'Dinsdagmail om 09:00 inschakelen' ?></button>
+        </form>
+        <?php if ($cronUrl !== null): ?>
+            <details>
+                <summary>Cronjob instellen bij de hosting</summary>
+                <p>Laat de hosting ieder uur deze beveiligde URL uitvoeren. De code verstuurt uitsluitend op dinsdag vanaf 09:00 Belgische tijd en voorkomt herhaling op dezelfde dinsdag.</p>
+                <div class="form-group"><label for="weekly-cron-url">Volledige cron-URL (privé houden)</label><textarea id="weekly-cron-url" rows="3" readonly><?= e($cronUrl) ?></textarea></div>
+                <p>Cronexpressie: <code>0 * * * *</code> (elk uur, minuut 0). Bij een invoerveld achter de domeinnaam gebruik je alleen het gedeelte vanaf <code>lease/public/weekly-mail-cron.php?key=</code>, inclusief de sleutel.</p>
+                <p>Na inschakelen is ook deze hostingtaak nodig. Alleen een knop inschakelen maakt geen cronjob aan. Controleer na dinsdag de verzendstatus hieronder.</p>
+            </details>
         <?php endif; ?>
         <form method="POST" action="send-weekly-mail.php">
             <?= Auth::csrfField() ?>

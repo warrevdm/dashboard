@@ -71,6 +71,16 @@ verzendstatus per ontvanger en een actueel mailvoorbeeld. **Contracten verlopen 
 Zonder logboek** gebruikt exact dezelfde selectie. Het mailvoorbeeld kan dus
 anders zijn dan de selectie op de eerstvolgende dinsdag.
 
+### Activeren via het hostingpaneel met een cron-URL
+
+Open na aanmelden **Dinsdagmail**. Klik **Dinsdagmail om 09:00 inschakelen** (de mailinstellingen en PHPMailer moeten volledig zijn). Open **Cronjob instellen bij de hosting** en kopieer de volledige URL, inclusief de persoonlijke sleutel, naar de URL-taak in het hostingpaneel. Kies `0 * * * *`: ieder uur, minuut 0. De applicatie bepaalt zelf dinsdag en 09:00 Europe/Brussels, ook bij zomer-/wintertijd.
+
+Het formulier bewaart de activering in `storage/weekly-mail/automation.json`, samen met een willekeurige 256-bit cronsleutel. Deze expliciete dashboardinstelling heeft voorrang op `enabled` uit de private mailconfiguratie en stelt het uur in op 9. **Uitschakelen** pauzeert de automatisering; **Nu versturen** blijft apart werken. Bewaar de statusmap bij deployment; plaats de sleutel niet in Git of publieke communicatie.
+
+De webroute `lease/public/weekly-mail-cron.php` accepteert uitsluitend HTTPS GET met de juiste sleutel (queryparameter `key`, of header `X-Cron-Key`). Zonder sleutel gebeurt geen databank- of SMTP-actie. De route heeft geen browsersessie nodig. Buiten dinsdag vanaf 09:00 of bij uitgeschakelde planning gebeurt geen verzending. Handmatig forceren of herproberen van onzekere verzendingen is niet beschikbaar via deze route. CLI en web delen de verzendregistratie en vergrendeling; gebruik één hostingtaak. Een cron-URL openen op dinsdag na 09:00 kan daadwerkelijk de mail versturen.
+
+De webroute gebruikt dezelfde productieconfiguratie als de CLI: `lease/config/config.production.php`, of `AAB_LEASE_DB_FILE`. Ze toont alleen status en aantallen, geen contractgegevens of geheime instellingen.
+
 ### Meteen versturen via de leasingtool
 
 Open na het aanmelden **Dinsdagmail** en klik op **Nu versturen**. Dit verstuurt
@@ -136,7 +146,7 @@ mailboxen: een nieuwe klik mailt opnieuw naar alle ingestelde ontvangers.
 
    De applicatie controleert zelf dinsdag en het verzenduur. Standaard is dat
    **dinsdag vanaf 09:00 Europe/Brussels**, inclusief zomer- en wintertijd,
-   ongeacht de tijdzone van de server. Je kunt `send_hour` aanpassen (0–23).
+   ongeacht de tijdzone van de server. Na activeren via de webapp is het uur vast 09:00.
    Iedere andere dag slaat de taak over. Een gemiste dinsdag wordt niet op een
    andere dag ingehaald. Op Windows kan dezelfde PHP-opdracht als ieder uur
    herhaalde taak in Taakplanner worden ingesteld.
@@ -145,8 +155,8 @@ mailboxen: een nieuwe klik mailt opnieuw naar alle ingestelde ontvangers.
    wijzigen maakt **geen** cronjob aan. Zonder ingestelde servertaak komt er geen
    automatische mail.
 
-De geplande taak werkt zonder browsersessie en is uitsluitend via PHP CLI uitvoerbaar;
-een HTTP-verzoek naar het CLI-script krijgt 404. Handmatig verzenden via de website
+De CLI-taak werkt zonder browsersessie; een HTTP-verzoek naar het CLI-script krijgt 404.
+Voor hostingpanelen met URL-taken is er daarnaast de hieronder beschreven beveiligde webroute. Handmatig verzenden via de website
 vereist een geldige aanmelding en het beveiligde formulier. Gebruik één planner en een permanente, voor PHP
 schrijfbare statusmap `lease/storage/weekly-mail`. Verwijder of vervang die map
 niet bij een deployment: ze voorkomt herhaalde verzending op dezelfde dinsdag.
