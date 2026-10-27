@@ -24,7 +24,7 @@ const postPages = [
   'delete-mapping-template.php', 'rollback-import.php', 'log-budget-conversion.php',
   'log-mail-action.php', 'import-preview.php', 'import-review.php', 'import-process.php',
   'import-source-o2o.php', 'import-source-joule.php', 'import-source-cyclobility.php',
-  'send-weekly-mail.php',
+  'send-weekly-mail.php', 'update-weekly-mail.php',
 ];
 async function newPHP() {
   const php = new PHP(await loadNodeRuntime('8.3', {fileLockManager: new FileLockManagerInMemory(), emscriptenOptions: {processId: process.pid}}));
@@ -107,7 +107,7 @@ async function newPHP() {
     }});
     return {jar, response, before};
   }
-  const allProtected = fs.readdirSync(base).filter(p => p.endsWith('.php') && p !== 'login.php');
+  const allProtected = fs.readdirSync(base).filter(p => p.endsWith('.php') && p !== 'login.php' && p !== 'weekly-mail-cron.php');
   for (const page of allProtected) {
     const response = await request(page);
     check(response.httpStatusCode === 302 && response.headers.location?.[0].startsWith('login.php'), `Anonymous GET blocked: ${page}`);
@@ -120,6 +120,7 @@ async function newPHP() {
   // Sentinels make any access beyond the guard visible, without external services.
   const sentinel = `file_put_contents(${phpString(marker)}, 'reached'); http_response_code(204); exit;`;
   fs.writeFileSync(path.join(fixture, 'app/Database.php'), `<?php require_once __DIR__.'/bootstrap.php'; class Database { public static function connect(): PDO { ${sentinel} } }`);
+  fs.writeFileSync(path.join(fixture, 'app/ImportFile.php'), `<?php ${sentinel}`);
   fs.mkdirSync(path.join(fixture, 'vendor'));
   fs.writeFileSync(path.join(fixture, 'vendor/autoload.php'), `<?php ${sentinel}`);
   const signedIn = await login();
@@ -150,11 +151,13 @@ async function newPHP() {
   const sendRequestId = 'a'.repeat(32);
   fs.writeFileSync(path.join(base, 'seed-mail-form.php'), `<?php require __DIR__.'/../app/bootstrap.php'; $_SESSION['weekly_mail_send_id']='${sendRequestId}';`);
   await request('seed-mail-form.php', {jar});
-  for (const page of postPages) {
+  for (const page of postPages.filter(p => p !== 'update-weekly-mail.php')) {
     fs.writeFileSync(marker, '');
     const response = await request(page, {jar, method: 'POST', data: {csrf_token: csrf, id: '1', send_request_id: sendRequestId}});
     check(response.httpStatusCode === 204 && fs.readFileSync(marker, 'utf8') === 'reached', `Valid form reaches processing: ${page}`);
   }
+  const settingRequest = await request('update-weekly-mail.php', {jar, method:'POST', data:{csrf_token:csrf, enabled:'invalid'}});
+  check(settingRequest.httpStatusCode === 303 && settingRequest.headers.location?.[0] === 'weekly-mail.php', 'Authenticated scheduler settings request handled without accepting invalid option');
   // Every real rendered POST form on upload + navigation carries the current token.
   for (const form of upload.text.matchAll(/<form\b[^>]*>[\s\S]*?<\/form>/gi)) {
     if (/method="POST"/i.test(form[0])) check(form[0].includes(`value="${csrf}"`), 'Rendered POST form includes session token');

@@ -88,7 +88,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 
 if (PHP_SAPI !== 'cli' && current_user() && is_finance()) {
     $scriptName = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
-    $allowedFinanceScripts = ['index.php', 'cashbook.php', 'reservation.php', 'bike-photo.php'];
+    $allowedFinanceScripts = ['index.php', 'cashbook.php', 'reservation.php', 'bike-photo.php', 'reservation-new.php', 'api-bike-availability.php', 'planning.php'];
 
     if (!in_array($scriptName, $allowedFinanceScripts, true)) {
         redirect('cashbook.php');
@@ -96,7 +96,7 @@ if (PHP_SAPI !== 'cli' && current_user() && is_finance()) {
 
     if ($scriptName === 'index.php') {
         $route = (string) ($_GET['route'] ?? '');
-        if (!in_array($route, ['login', 'logout'], true)) {
+        if (!in_array($route, ['login', 'logout', 'reservation-new', 'planning'], true)) {
             redirect('cashbook.php');
         }
     }
@@ -107,7 +107,8 @@ header('X-Frame-Options: DENY');
 header('X-Robots-Tag: noindex, nofollow, noarchive');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: same-origin');
-header("Permissions-Policy: camera=(), microphone=(), geolocation=()");
+$cameraPage = in_array(basename((string) ($_SERVER['SCRIPT_NAME'] ?? '')), ['reservation.php', 'reservation-new.php'], true);
+header('Permissions-Policy: camera=' . ($cameraPage ? '(self)' : '()') . ', microphone=(), geolocation=()');
 header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self' http://127.0.0.1:17895 http://localhost:17895; base-uri 'self'; form-action 'self'; frame-ancestors 'none'");
 
 if (PHP_SAPI !== 'cli' && basename((string) ($_SERVER['SCRIPT_NAME'] ?? '')) === 'index.php') {

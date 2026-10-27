@@ -2,10 +2,10 @@
 
 require_once __DIR__ . '/../app/bootstrap.php';
 Auth::requirePost();
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../app/ImportFile.php';
+require_once __DIR__ . '/../app/ImportValidation.php';
 require_once __DIR__ . '/../app/Database.php';
-
-use PhpOffice\PhpSpreadsheet\IOFactory;
+require_once __DIR__ . '/../app/ImportValues.php';
 
 function e($value): string
 {
@@ -14,110 +14,34 @@ function e($value): string
 
 function normalizeDateValue($value): ?string
 {
-    if ($value === null || $value === '') {
-        return null;
-    }
-
-    if (is_numeric($value)) {
-        try {
-            return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value)->format('Y-m-d');
-        } catch (Throwable $e) {
-            return null;
-        }
-    }
-
-    $value = trim((string) $value);
-
-    $formats = [
-        'd/m/Y',
-        'd-m-Y',
-        'Y-m-d',
-        'd/m/y',
-        'd-m-y',
-    ];
-
-    foreach ($formats as $format) {
-        $date = DateTime::createFromFormat($format, $value);
-
-        if ($date instanceof DateTime) {
-            return $date->format('Y-m-d');
-        }
-    }
-
-    return null;
+    return ImportValidation::date($value);
 }
 
 function addMonthsToDate(?string $dateValue, int $months): ?string
 {
-    if (!$dateValue) {
-        return null;
-    }
-
-    $date = DateTime::createFromFormat('Y-m-d', $dateValue);
-
-    if (!$date) {
-        return null;
-    }
-
-    $date->modify('+' . $months . ' months');
-
-    return $date->format('Y-m-d');
+    if (!$dateValue) return null;
+    $date = new DateTimeImmutable(ImportValidation::date($dateValue), new DateTimeZone('Europe/Brussels'));
+    $target = $date->modify('first day of this month')->modify(($months >= 0 ? '+' : '') . $months . ' months');
+    return $target->setDate((int)$target->format('Y'), (int)$target->format('m'), min((int)$date->format('d'), (int)$target->format('t')))->format('Y-m-d');
 }
 
-function calculateNextAnnualMaintenanceEndDate(?string $startDateValue, ?string $contractEndDateValue): ?string
+function calculateNextAnnualMaintenanceEndDate(?string $startDateValue, ?string $contractEndDateValue, ?DateTimeImmutable $todayValue = null): ?string
 {
-    if (!$startDateValue) {
-        return null;
-    }
-
-    $startDate = DateTime::createFromFormat('Y-m-d', $startDateValue);
-
-    if (!$startDate) {
-        return null;
-    }
-
-    $today = new DateTime('today');
-    $contractEndDate = null;
-
-    if ($contractEndDateValue) {
-        $contractEndDate = DateTime::createFromFormat('Y-m-d', $contractEndDateValue) ?: null;
-    }
-
-    if ($contractEndDate && $contractEndDate < $today) {
-        return $contractEndDate->format('Y-m-d');
-    }
-
-    $maintenanceEndDate = clone $startDate;
-    $maintenanceEndDate->modify('+1 year');
-
-    while ($maintenanceEndDate < $today) {
-        $maintenanceEndDate->modify('+1 year');
-    }
-
-    if ($contractEndDate && $maintenanceEndDate > $contractEndDate) {
-        return $contractEndDate->format('Y-m-d');
-    }
-
-    return $maintenanceEndDate->format('Y-m-d');
+    if (!$startDateValue) return null;
+    $timezone = new DateTimeZone('Europe/Brussels');
+    $startDate = new DateTimeImmutable(ImportValidation::date($startDateValue), $timezone);
+    $today = ($todayValue ?? new DateTimeImmutable('today', $timezone))->setTimezone($timezone)->setTime(0, 0);
+    $contractEnd = $contractEndDateValue ? ImportValidation::date($contractEndDateValue) : null;
+    if ($contractEnd && $contractEnd < $today->format('Y-m-d')) return $contractEnd;
+    $years = max(1, (int)$today->format('Y') - (int)$startDate->format('Y'));
+    $anniversary = addMonthsToDate($startDate->format('Y-m-d'), 12 * $years);
+    if ($anniversary < $today->format('Y-m-d')) $anniversary = addMonthsToDate($startDate->format('Y-m-d'), 12 * ($years + 1));
+    return $contractEnd && $anniversary > $contractEnd ? $contractEnd : $anniversary;
 }
 
 function normalizeMoneyValue($value): ?float
 {
-    if ($value === null || $value === '') {
-        return null;
-    }
-
-    $value = trim((string) $value);
-    $value = str_replace(['€', ' '], '', $value);
-
-    if (str_contains($value, ',') && str_contains($value, '.')) {
-        $value = str_replace('.', '', $value);
-        $value = str_replace(',', '.', $value);
-    } else {
-        $value = str_replace(',', '.', $value);
-    }
-
-    return is_numeric($value) ? (float) $value : null;
+    return ImportValidation::money($value);
 }
 
 function normalizeOrderStatusValue($value): array
@@ -159,6 +83,8 @@ function normalizeBikeTypeValue($value): string
     if ($value === '') {
         return 'onbekend';
     }
+
+    if (in_array($value, ['elektrisch', 'racefiets', 'gravelfiets', 'speedpedelec', 'elektrische gezinsfiets', 'niet elektrisch city bike', 'mountainbike', 'onbekend'], true)) return $value;
 
     if (str_contains($value, 'speed')) {
         return 'speedpedelec';
@@ -205,15 +131,14 @@ if (!file_exists($filePath)) {
 }
 
 try {
-    $spreadsheet = IOFactory::load($filePath);
+    $rows = ImportFile::rows($filePath);
 } catch (Throwable $e) {
     die('Excelbestand kon niet gelezen worden: ' . e($e->getMessage()));
 }
 
-$sheet = $spreadsheet->getActiveSheet();
-$rows = $sheet->toArray();
-
-array_shift($rows);
+$headers = array_shift($rows);
+$validationErrors = ImportValidation::errors($rows, $mapping, count($headers));
+if ($validationErrors) ImportValidation::reject($validationErrors, $filename);
 
 $pdo = Database::connect();
 
@@ -221,6 +146,9 @@ $importedRows = 0;
 $updatedRows = 0;
 $archivedUpdates = 0;
 $skippedRows = 0;
+
+try {
+$pdo->beginTransaction();
 
 if ($mappingName !== '') {
     $mappingJson = json_encode($mapping, JSON_UNESCAPED_UNICODE);
@@ -257,9 +185,10 @@ $batchStmt->execute([
 $batchId = (int) $pdo->lastInsertId();
 
 $existsStmt = $pdo->prepare("
-    SELECT id, archived
+    SELECT *
     FROM lease_orders
     WHERE so_number = :so_number
+    FOR UPDATE
 ");
 
 $upsertStmt = $pdo->prepare("
@@ -385,6 +314,13 @@ foreach ($rows as $rowIndex => $row) {
         continue;
     }
 
+    $existsStmt->execute([
+        ':so_number' => $soNumber,
+    ]);
+
+    $exists = $existsStmt->fetch();
+    $data = ImportValues::preserveExisting($data, $exists ?: null);
+
     $leasePartnerValue = trim((string) ($data['lease_partner'] ?? ''));
     $normalizedLeasePartner = strtolower($leasePartnerValue);
     $normalizedMappingName = strtolower($mappingName);
@@ -439,12 +375,6 @@ foreach ($rows as $rowIndex => $row) {
             $leaseEndDateValue
         );
     }
-
-    $existsStmt->execute([
-        ':so_number' => $soNumber,
-    ]);
-
-    $exists = $existsStmt->fetch();
 
     $upsertStmt->execute([
         ':so_number' => $soNumber,
@@ -507,6 +437,14 @@ $updateBatchStmt->execute([
     ':skipped_rows' => $skippedRows,
     ':id' => $batchId,
 ]);
+
+$pdo->commit();
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    error_log('Lease-import afgebroken: ' . get_class($e));
+    http_response_code(500);
+    exit('De import kon niet worden afgerond. Er zijn geen wijzigingen opgeslagen. Probeer opnieuw of meld dit bij de beheerder.');
+}
 
 ?>
 

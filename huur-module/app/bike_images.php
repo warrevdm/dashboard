@@ -351,5 +351,5 @@ function bike_photo_src(array $bike, int $size = 240): string
     $version = rawurlencode((string) ($bike['updated_at'] ?? ''));
 
     // Relatieve URL houdt de request op exact dezelfde host en onder /huur-module/.
-    return 'bike-photo.php?id=' . $id . '&size=' . $size . '&v=' . $version;
+    return 'bike-photo.php?id=' . $id . '&size=' . $size . '&v=' . $version . '&thumb=2';
 }

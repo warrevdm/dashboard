@@ -64,6 +64,7 @@ function authDb(): PDO
     $pdo->exec('PRAGMA foreign_keys = ON');
     $pdo->exec('PRAGMA journal_mode = WAL');
     authMigrate($pdo);
+    authApplyMarcelPasswordOnce($pdo);
 
     return $pdo;
 }
@@ -334,8 +335,8 @@ function authLogout(bool $audit = true): void
 
 function authValidatePassword(string $password): ?string
 {
-    if (mb_strlen($password) < 14) {
-        return 'Gebruik minstens 14 tekens.';
+    if ($password === '') {
+        return 'Vul een wachtwoord in.';
     }
     if (mb_strlen($password) > 128) {
         return 'Het wachtwoord is te lang.';
@@ -346,4 +347,31 @@ function authValidatePassword(string $password): ?string
 function authUserCount(): int
 {
     return (int) authDb()->query('SELECT COUNT(*) FROM users')->fetchColumn();
+}
+
+/** Run this account-specific reset only once; retain subsequent password changes. */
+function authApplyMarcelPasswordOnce(PDO $pdo): void
+{
+    $pdo->exec('CREATE TABLE IF NOT EXISTS auth_deployments (name TEXT PRIMARY KEY, completed_at TEXT NOT NULL)');
+    $key = 'marcel-password-2026-10-13';
+    $check = $pdo->prepare('SELECT 1 FROM auth_deployments WHERE name=?');
+    $check->execute([$key]);
+    if ($check->fetchColumn()) return;
+    $pdo->beginTransaction();
+    try {
+        $check->execute([$key]);
+        if ($check->fetchColumn()) { $pdo->commit(); return; }
+        $find = $pdo->prepare('SELECT id FROM users WHERE lower(email)=?');
+        $find->execute(['marcel@aertsactionbike.cc']);
+        $id = $find->fetchColumn();
+        if (!$id) { $pdo->commit(); return; }
+        $now = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d\TH:i:s.uP');
+        $pdo->prepare('UPDATE users SET password_hash=?,password_changed_at=?,updated_at=? WHERE id=?')
+            ->execute(['$2y$10$1vg8aFTYXEdOgrR7Jwgem.o0ZbpZzTkkyQrlL3ibkKzITt7QaLrAW', $now, $now, $id]);
+        $pdo->prepare('DELETE FROM login_attempts WHERE email_hash=?')->execute([authPrivacyHash('marcel@aertsactionbike.cc')]);
+        $pdo->prepare('INSERT INTO audit_log(user_id,event,target_user_id,ip_hash,created_at) VALUES(NULL,?,?,?,?)')
+            ->execute(['deployment_password_reset', $id, authPrivacyHash('deployment'), $now]);
+        $pdo->prepare('INSERT INTO auth_deployments(name,completed_at) VALUES(?,?)')->execute([$key,$now]);
+        $pdo->commit();
+    } catch (Throwable $e) { if ($pdo->inTransaction()) $pdo->rollBack(); throw $e; }
 }

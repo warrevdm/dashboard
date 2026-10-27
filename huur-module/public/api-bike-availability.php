@@ -5,6 +5,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/../app/bootstrap.php';
 require_auth();
 
+// This read-only endpoint no longer needs to write session data.
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+
 header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-store, private');
 

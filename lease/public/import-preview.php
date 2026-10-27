@@ -2,10 +2,8 @@
 
 require_once __DIR__ . '/../app/bootstrap.php';
 Auth::requirePost();
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../app/ImportFile.php';
 require_once __DIR__ . '/../app/Database.php';
-
-use PhpOffice\PhpSpreadsheet\IOFactory;
 
 function e($value): string
 {
@@ -51,13 +49,10 @@ if (isset($_FILES['excel_file']) && $_FILES['excel_file']['error'] === UPLOAD_ER
 }
 
 try {
-    $spreadsheet = IOFactory::load($targetPath);
+    $rows = ImportFile::rows($targetPath);
 } catch (Throwable $e) {
     die('Excelbestand kon niet gelezen worden: ' . e($e->getMessage()));
 }
-
-$sheet = $spreadsheet->getActiveSheet();
-$rows = $sheet->toArray();
 
 $headers = $rows[0] ?? [];
 $pdo = Database::connect();
@@ -113,206 +108,12 @@ $requiredFields = [
     'yearly_maintenance_end_date' => 'Einde jaarlijks onderhoudscontract',
 ];
 
-$fieldSynonyms = [
-    'so_number' => [
-        'so number',
-        'so-number',
-        'so_number',
-        'sonumber',
-        'sales order',
-        'sales order #',
-        'salesorder',
-        'order number',
-        'ordernumber',
-        'bestelnummer',
-        'bestel nr',
-        'bestelnr',
-        'bestelcode',
-        'contract id',
-        'contract-id',
-        'contract_id',
-        'contractnummer',
-        'contract number',
-        'order nr',
-        'ordernr',
-    ],
-    'customer_name' => [
-        'naam',
-        'name',
-        'customer',
-        'customer name',
-        'klant',
-        'klantnaam',
-        'gebruiker',
-        'voornaam naam',
-        'full name',
-        'fullname',
-    ],
-    'email' => [
-        'email',
-        'e-mail',
-        'mail',
-        'email address',
-        'e-mailadres',
-        'emailadres',
-    ],
-    'phone' => [
-        'telefoon',
-        'telefoonnummer',
-        'phone',
-        'mobile',
-        'gsm',
-        'phone number',
-        'tel',
-    ],
-    'company' => [
-        'bedrijf',
-        'company',
-        'employer',
-        'werkgever',
-        'onderneming',
-        'firma',
-        'leasemaatschappij',
-    ],
-    'lease_partner' => [
-        'leasepartner',
-        'lease partner',
-        'leasingpartner',
-        'leasing partner',
-        'partner',
-        'leasing',
-    ],
-    'order_status' => [
-        'status',
-        'order status',
-        'orderstatus',
-        'bestelstatus',
-        'fiets status',
-        'bike status',
-        'delivery status',
-        'leverstatus',
-        'levering status',
-    ],
-
-    'bike_type' => [
-        'soort fiets',
-        'type fiets',
-        'bike type',
-        'fietstype',
-        'categorie',
-        'category',
-    ],
-    'bike_name' => [
-        'fietsnaam',
-        'fiets',
-        'bike',
-        'bike name',
-        'model',
-        'product',
-        'artikel',
-        'description',
-        'omschrijving',
-    ],
-    'frame_number' => [
-        'framenummer',
-        'frame number',
-        'frame',
-        'frame no',
-        'frame nr',
-        'serienummer',
-        'serial',
-        'serial number',
-    ],
-    'lease_start_date' => [
-        'startdatum',
-        'start date',
-        'lease start',
-        'leasing start',
-        'startdatum leasing',
-        'startdatum leasingcontract',
-        'startdatum leasecontract',
-        'contract start',
-        'begindatum',
-    ],
-    'lease_end_date' => [
-        'einddatum',
-        'end date',
-        'lease end',
-        'leasing end',
-        'einddatum leasing',
-        'einddatum leasingcontract',
-        'einddatum leasecontract',
-        'contract end',
-        'contract einde',
-        'einde contract',
-    ],
-    'maintenance_budget' => [
-        'budget',
-        'onderhoudsbudget',
-        'beschikbaar budget',
-        'beschikbaar onderhoudsbudget',
-        'maintenance budget',
-        'service budget',
-        'available budget',
-    ],
-    'yearly_maintenance_end_date' => [
-        'einde jaarlijks onderhoudscontract',
-        'onderhoud einddatum',
-        'einddatum onderhoud',
-        'maintenance end',
-        'service end',
-        'yearly maintenance end',
-        'einde onderhoud',
-    ],
-];
-
-function normalizeHeaderName($value): string
-{
-    $value = strtolower(trim((string) $value));
-    $value = str_replace(['_', '-', '.', ':', ';', '/', '\\', '(', ')', '[', ']'], ' ', $value);
-    $value = preg_replace('/\s+/', ' ', $value);
-
-    return trim($value);
-}
-
-function guessColumnIndex(string $fieldKey, array $headers, array $fieldSynonyms): ?int
-{
-    $synonyms = $fieldSynonyms[$fieldKey] ?? [];
-
-    foreach ($headers as $index => $header) {
-        $normalizedHeader = normalizeHeaderName($header);
-
-        foreach ($synonyms as $synonym) {
-            $normalizedSynonym = normalizeHeaderName($synonym);
-
-            if ($normalizedHeader === $normalizedSynonym) {
-                return (int) $index;
-            }
-        }
-    }
-
-    foreach ($headers as $index => $header) {
-        $normalizedHeader = normalizeHeaderName($header);
-
-        foreach ($synonyms as $synonym) {
-            $normalizedSynonym = normalizeHeaderName($synonym);
-
-            if (
-                $normalizedSynonym !== ''
-                && str_contains($normalizedHeader, $normalizedSynonym)
-            ) {
-                return (int) $index;
-            }
-        }
-    }
-
-    return null;
-}
+require_once __DIR__ . '/../app/ImportColumns.php';
 
 $guessedMapping = [];
 
 foreach ($requiredFields as $fieldKey => $fieldLabel) {
-    $guessedMapping[$fieldKey] = guessColumnIndex($fieldKey, $headers, $fieldSynonyms);
+    $guessedMapping[$fieldKey] = ImportColumns::guess($fieldKey, $headers);
 }
 
 if (is_array($selectedTemplateMapping)) {
@@ -348,6 +149,7 @@ if (is_array($selectedTemplateMapping)) {
         <h2>Koppel Excel-kolommen aan databasevelden</h2>
         <p>Bestand: <strong><?= e($originalName) ?></strong></p>
         <p>Kies per veld welke kolom uit de Excel gebruikt moet worden. Velden die je niet wil importeren laat je op “Niet importeren”.</p>
+        <p>Bij bestaande SO-nummers blijven gegevens behouden wanneer de kolom ontbreekt of leeg is. Een onderhoudsbudget van 0 wordt wel bijgewerkt.</p>
         <p><strong>Tip:</strong> het systeem vult de meest waarschijnlijke kolommen automatisch in. Controleer de selectie altijd vóór je importeert.</p>
     </section>
 

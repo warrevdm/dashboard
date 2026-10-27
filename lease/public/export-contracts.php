@@ -1,29 +1,35 @@
 <?php
 
 require_once __DIR__ . '/../app/Database.php';
+require_once __DIR__ . '/../app/CsvExport.php';
+require_once __DIR__ . '/../app/ExpiringContracts.php';
 
 $pdo = Database::connect();
 
-$search = trim($_GET['search'] ?? '');
-$leasePartner = trim($_GET['lease_partner'] ?? '');
-$bikeType = trim($_GET['bike_type'] ?? '');
-$contractStatus = trim($_GET['contract_status'] ?? '');
+$search = trim(is_string($_GET['search'] ?? null) ? $_GET['search'] : '');
+$leasePartner = trim(is_string($_GET['lease_partner'] ?? null) ? $_GET['lease_partner'] : '');
+$bikeType = trim(is_string($_GET['bike_type'] ?? null) ? $_GET['bike_type'] : '');
+$contractStatus = trim(is_string($_GET['contract_status'] ?? null) ? $_GET['contract_status'] : '');
+
+[$windowStart, $windowEnd] = ExpiringContracts::window(new DateTimeImmutable('now', new DateTimeZone('Europe/Brussels')));
 
 $where = [];
 $params = [];
 
 if ($search !== '') {
     $where[] = "(
-        so_number LIKE :search
-        OR customer_name LIKE :search
-        OR email LIKE :search
-        OR phone LIKE :search
-        OR company LIKE :search
-        OR bike_name LIKE :search
-        OR frame_number LIKE :search
+        so_number LIKE :search_so
+        OR customer_name LIKE :search_name
+        OR email LIKE :search_email
+        OR phone LIKE :search_phone
+        OR company LIKE :search_company
+        OR bike_name LIKE :search_bike
+        OR frame_number LIKE :search_frame
     )";
 
-    $params[':search'] = '%' . $search . '%';
+    foreach (['so', 'name', 'email', 'phone', 'company', 'bike', 'frame'] as $field) {
+        $params[':search_' . $field] = '%' . $search . '%';
+    }
 }
 
 if ($leasePartner !== '') {
@@ -36,16 +42,19 @@ if ($bikeType !== '') {
     $params[':bike_type'] = $bikeType;
 }
 
+if (in_array($contractStatus, ['active', 'expiring_soon', 'expired'], true)) $params[':filter_today'] = $windowStart->format('Y-m-d');
+if ($contractStatus === 'expiring_soon') $params[':filter_end'] = $windowEnd->format('Y-m-d');
+
 if ($contractStatus === 'active') {
-    $where[] = "lease_end_date IS NOT NULL AND lease_end_date >= CURDATE()";
+    $where[] = "lease_end_date IS NOT NULL AND lease_end_date >= :filter_today";
 }
 
 if ($contractStatus === 'expiring_soon') {
-    $where[] = "lease_end_date IS NOT NULL AND lease_end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 MONTH)";
+    $where[] = "lease_end_date IS NOT NULL AND lease_end_date BETWEEN :filter_today AND :filter_end";
 }
 
 if ($contractStatus === 'expired') {
-    $where[] = "lease_end_date IS NOT NULL AND lease_end_date < CURDATE()";
+    $where[] = "lease_end_date IS NOT NULL AND lease_end_date < :filter_today";
 }
 
 if ($contractStatus === 'no_end_date') {
@@ -81,12 +90,11 @@ $sql = "
         updated_at
     FROM lease_orders
     $whereSql
-    ORDER BY lease_start_date DESC, created_at DESC
+    ORDER BY lease_start_date IS NULL ASC, lease_start_date DESC, created_at DESC, id ASC
 ";
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
-$orders = $stmt->fetchAll();
 
 $filename = 'lease-contracten-export-' . date('Y-m-d-His') . '.csv';
 
@@ -116,28 +124,28 @@ fputcsv($output, [
     'Laatst geïmporteerd',
     'Aangemaakt op',
     'Laatst aangepast op',
-], ';');
+], ';', '"', '');
 
-foreach ($orders as $order) {
+while ($order = $stmt->fetch()) {
     fputcsv($output, [
-        $order['so_number'],
-        $order['customer_name'],
-        $order['email'],
-        $order['phone'],
-        $order['company'],
-        $order['lease_partner'],
-        $order['bike_type'],
-        $order['bike_name'],
-        $order['frame_number'],
-        $order['lease_start_date'],
-        $order['lease_end_date'],
-        $order['maintenance_budget'],
-        $order['yearly_maintenance_end_date'],
-        $order['source_file'],
-        $order['last_imported_at'],
-        $order['created_at'],
-        $order['updated_at'],
-    ], ';');
+        CsvExport::cell($order['so_number']),
+        CsvExport::cell($order['customer_name']),
+        CsvExport::cell($order['email']),
+        CsvExport::cell($order['phone']),
+        CsvExport::cell($order['company']),
+        CsvExport::cell($order['lease_partner']),
+        CsvExport::cell($order['bike_type']),
+        CsvExport::cell($order['bike_name']),
+        CsvExport::cell($order['frame_number']),
+        CsvExport::cell($order['lease_start_date']),
+        CsvExport::cell($order['lease_end_date']),
+        CsvExport::cell($order['maintenance_budget'], true),
+        CsvExport::cell($order['yearly_maintenance_end_date']),
+        CsvExport::cell($order['source_file']),
+        CsvExport::cell($order['last_imported_at']),
+        CsvExport::cell($order['created_at']),
+        CsvExport::cell($order['updated_at']),
+    ], ';', '"', '');
 }
 
 fclose($output);
