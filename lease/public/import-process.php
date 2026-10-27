@@ -2,10 +2,9 @@
 
 require_once __DIR__ . '/../app/bootstrap.php';
 Auth::requirePost();
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../app/ImportFile.php';
 require_once __DIR__ . '/../app/Database.php';
-
-use PhpOffice\PhpSpreadsheet\IOFactory;
+require_once __DIR__ . '/../app/ImportValues.php';
 
 function e($value): string
 {
@@ -20,6 +19,7 @@ function normalizeDateValue($value): ?string
 
     if (is_numeric($value)) {
         try {
+            if (!class_exists(\PhpOffice\PhpSpreadsheet\Shared\Date::class)) require_once __DIR__ . '/../vendor/autoload.php';
             return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value)->format('Y-m-d');
         } catch (Throwable $e) {
             return null;
@@ -160,6 +160,8 @@ function normalizeBikeTypeValue($value): string
         return 'onbekend';
     }
 
+    if ($value === 'niet elektrisch city bike') return $value;
+
     if (str_contains($value, 'speed')) {
         return 'speedpedelec';
     }
@@ -205,13 +207,10 @@ if (!file_exists($filePath)) {
 }
 
 try {
-    $spreadsheet = IOFactory::load($filePath);
+    $rows = ImportFile::rows($filePath);
 } catch (Throwable $e) {
     die('Excelbestand kon niet gelezen worden: ' . e($e->getMessage()));
 }
-
-$sheet = $spreadsheet->getActiveSheet();
-$rows = $sheet->toArray();
 
 array_shift($rows);
 
@@ -257,7 +256,7 @@ $batchStmt->execute([
 $batchId = (int) $pdo->lastInsertId();
 
 $existsStmt = $pdo->prepare("
-    SELECT id, archived
+    SELECT *
     FROM lease_orders
     WHERE so_number = :so_number
 ");
@@ -385,6 +384,13 @@ foreach ($rows as $rowIndex => $row) {
         continue;
     }
 
+    $existsStmt->execute([
+        ':so_number' => $soNumber,
+    ]);
+
+    $exists = $existsStmt->fetch();
+    $data = ImportValues::preserveExisting($data, $exists ?: null);
+
     $leasePartnerValue = trim((string) ($data['lease_partner'] ?? ''));
     $normalizedLeasePartner = strtolower($leasePartnerValue);
     $normalizedMappingName = strtolower($mappingName);
@@ -439,12 +445,6 @@ foreach ($rows as $rowIndex => $row) {
             $leaseEndDateValue
         );
     }
-
-    $existsStmt->execute([
-        ':so_number' => $soNumber,
-    ]);
-
-    $exists = $existsStmt->fetch();
 
     $upsertStmt->execute([
         ':so_number' => $soNumber,

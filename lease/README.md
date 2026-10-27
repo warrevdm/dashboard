@@ -328,3 +328,13 @@ De suite controleert ook cookieherstel, sleutelrotatie, verouderde sessies,
 verlopen sessies, blokkering over meerdere browsersessies en de CLI-generator.
 Webserverregels en de volledige importwerking moeten apart op de doelomgeving
 worden gecontroleerd. De testafhankelijkheden zijn niet nodig op productie.
+
+### Cyclis CSV importeren
+
+Upload het originele Cyclis-bestand via **Excel importeren**. CSV met puntkomma's, komma's of tabs en een UTF-8 BOM wordt rechtstreeks als tekst gelezen; CSV vereist hiervoor geen PhpSpreadsheet. Voor XLS/XLSX blijven de Composer-afhankelijkheden nodig.
+
+Automatische herkenning koppelt `Pickup Date` aan de startdatum, `End date` aan de einddatum, `lease maatschap` aan de leasepartner en `Available Maintenance Budget` aan het budget. `Dealer` is geen werkgever en wordt niet als Bedrijf geïmporteerd. Gebruik de automatische herkenning of controleer oudere opgeslagen templates.
+
+Bij een bestaand SO-nummer blijven ontbrekende en lege velden behouden. Nul- en negatieve onderhoudsbudgetten worden wel bijgewerkt. De preview meldt ontbrekende contractdatums; nieuwe dossiers zonder datum krijgen geen verzonnen datum. De definitieve import wordt pas gestart na de bestaande preview en bevestiging.
+
+Test: `cd lease/tests && npm run test:import`. Een lokaal CSV-bestand kan optioneel als argument aan `cyclis-import.cjs` meegegeven worden; de test rapporteert alleen aantallen en slaat geen klantgegevens op in de repository.

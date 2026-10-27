@@ -120,6 +120,7 @@ async function newPHP() {
   // Sentinels make any access beyond the guard visible, without external services.
   const sentinel = `file_put_contents(${phpString(marker)}, 'reached'); http_response_code(204); exit;`;
   fs.writeFileSync(path.join(fixture, 'app/Database.php'), `<?php require_once __DIR__.'/bootstrap.php'; class Database { public static function connect(): PDO { ${sentinel} } }`);
+  fs.writeFileSync(path.join(fixture, 'app/ImportFile.php'), `<?php ${sentinel}`);
   fs.mkdirSync(path.join(fixture, 'vendor'));
   fs.writeFileSync(path.join(fixture, 'vendor/autoload.php'), `<?php ${sentinel}`);
   const signedIn = await login();

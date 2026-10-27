@@ -3,9 +3,7 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 Auth::requirePost();
 
-require_once __DIR__ . '/../vendor/autoload.php';
-
-use PhpOffice\PhpSpreadsheet\IOFactory;
+require_once __DIR__ . '/../app/ImportFile.php';
 
 function e($value): string
 {
@@ -20,6 +18,7 @@ function normalizeDateValue($value): ?string
 
     if (is_numeric($value)) {
         try {
+            if (!class_exists(\PhpOffice\PhpSpreadsheet\Shared\Date::class)) require_once __DIR__ . '/../vendor/autoload.php';
             return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value)->format('Y-m-d');
         } catch (Throwable $e) {
             return null;
@@ -73,6 +72,8 @@ function normalizeBikeTypeValue($value): string
     if ($value === '') {
         return 'onbekend';
     }
+
+    if ($value === 'niet elektrisch city bike') return $value;
 
     if (str_contains($value, 'speed')) {
         return 'speedpedelec';
@@ -128,13 +129,10 @@ if (!file_exists($filePath)) {
 }
 
 try {
-    $spreadsheet = IOFactory::load($filePath);
+    $rows = ImportFile::rows($filePath);
 } catch (Throwable $e) {
     die('Excelbestand kon niet gelezen worden: ' . e($e->getMessage()));
 }
-
-$sheet = $spreadsheet->getActiveSheet();
-$rows = $sheet->toArray();
 
 array_shift($rows);
 
@@ -164,8 +162,13 @@ foreach ($previewRows as $rowIndex => $row) {
 }
 
 $missingSoNumbers = 0;
+$missingContractDates = 0;
 
 foreach ($rows as $row) {
+    if (trim((string)mappedValue($row, $mapping, 'lease_start_date')) === ''
+        || trim((string)mappedValue($row, $mapping, 'lease_end_date')) === '') {
+        $missingContractDates++;
+    }
     $soNumber = trim((string) mappedValue($row, $mapping, 'so_number'));
 
     if ($soNumber === '') {
@@ -199,12 +202,17 @@ foreach ($rows as $row) {
         <p><strong>Totaal aantal rijen:</strong> <?= e($totalRows) ?></p>
         <p><strong>Rijen zonder SO-number:</strong> <?= e($missingSoNumbers) ?></p>
 
+        <?php if ($missingContractDates > 0): ?>
+            <p class="alert-warning"><?= e($missingContractDates) ?> rij(en) missen een start- of einddatum. Nieuwe contracten worden met onbekende datums toegevoegd; bestaande datums blijven behouden.</p>
+        <?php endif; ?>
+
         <?php if ($missingSoNumbers > 0): ?>
             <p class="alert-warning">
                 Let op: <?= e($missingSoNumbers) ?> rij(en) hebben geen SO-number en zullen worden overgeslagen.
             </p>
         <?php endif; ?>
 
+        <p>Bij bestaande SO-nummers blijven gegevens behouden wanneer de kolom ontbreekt of leeg is. Een onderhoudsbudget van 0 wordt wel bijgewerkt.</p>
         <p>Controleer hieronder de eerste 10 rijen. Als de kolommen fout gekoppeld zijn, ga terug en pas de mapping aan.</p>
     </section>
 

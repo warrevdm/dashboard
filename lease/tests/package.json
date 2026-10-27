@@ -4,7 +4,8 @@
   "scripts": {
     "test": "npm run test:security && npm run test:weekly",
     "test:security": "node --experimental-wasm-jspi security.cjs",
-    "test:weekly": "node --experimental-wasm-jspi weekly-mail.cjs"
+    "test:weekly": "node --experimental-wasm-jspi weekly-mail.cjs",
+    "test:import": "node --experimental-wasm-jspi cyclis-import.cjs"
   },
   "devDependencies": {
     "@php-wasm/node": "3.1.54",
