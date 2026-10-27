@@ -2,10 +2,14 @@
   "name": "aab-lease-security-tests",
   "private": true,
   "scripts": {
-    "test": "npm run test:security && npm run test:weekly",
+    "test": "npm run test:security && npm run test:weekly && npm run test:import && npm run test:validation && npm run test:contracts && npm run test:overview && npm run test:export",
     "test:security": "node --experimental-wasm-jspi security.cjs",
     "test:weekly": "node --experimental-wasm-jspi weekly-mail.cjs",
-    "test:import": "node --experimental-wasm-jspi cyclis-import.cjs"
+    "test:import": "node --experimental-wasm-jspi cyclis-import.cjs",
+    "test:validation": "node --experimental-wasm-jspi import-validation.cjs",
+    "test:contracts": "node --experimental-wasm-jspi contract-update.cjs",
+    "test:overview": "node --experimental-wasm-jspi contracts-list.cjs",
+    "test:export": "node --experimental-wasm-jspi export-contracts.cjs"
   },
   "devDependencies": {
     "@php-wasm/node": "3.1.54",

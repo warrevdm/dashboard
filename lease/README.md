@@ -338,3 +338,17 @@ Automatische herkenning koppelt `Pickup Date` aan de startdatum, `End date` aan 
 Bij een bestaand SO-nummer blijven ontbrekende en lege velden behouden. Nul- en negatieve onderhoudsbudgetten worden wel bijgewerkt. De preview meldt ontbrekende contractdatums; nieuwe dossiers zonder datum krijgen geen verzonnen datum. De definitieve import wordt pas gestart na de bestaande preview en bevestiging.
 
 Test: `cd lease/tests && npm run test:import`. Een lokaal CSV-bestand kan optioneel als argument aan `cyclis-import.cjs` meegegeven worden; de test rapporteert alleen aantallen en slaat geen klantgegevens op in de repository.
+
+### Betrouwbaarheid en contractbeheer
+
+- Het contractoverzicht toont standaard 50 resultaten per pagina (ook 100/200 mogelijk), met behoud van filters en sortering. CSV-export bevat alle overeenkomende actieve contracten.
+- Overzicht en export gebruiken dezelfde Belgische kalenderdatums. De periode “binnen drie maanden” gebruikt kalendermaanden.
+- Imports controleren alle rijen op ongeldige datums, bedragen, dubbele SO-nummers en ongeldige kolomkoppelingen vóór verwerking. Bij deze fouten verschijnt een rijmelding; herstel het bestand of de koppeling en start de preview opnieuw. Ontbrekende datums zijn nog steeds toegestaan.
+- Mapping, batch en contractwijzigingen van een import worden samen opgeslagen. Bij een databasefout wordt de hele import teruggedraaid. Dit is geen herstel van oude batches; de bestaande rollback-knop verwijdert alleen nieuw aangemaakte contracten.
+- Contractbewerking controleert datums, bedragen, e-mail, veldlengte en fietstype. Foutieve invoer blijft bewaard bij terugkeer naar het formulier. Bij een tussentijdse wijziging door een import of collega verschijnt eerst een melding; controleer de bewaarde invoer tegenover de opgeslagen gegevens.
+- Bij het bewerken worden O2O/Cyclis-budgetdatums opnieuw berekend. Maand- en jaargrenzen worden begrensd op de laatste geldige dag (29 februari + één jaar wordt 28 februari). Bij wijziging van periode of partner wordt ook het jaarlijkse Lease a Bike-onderhoud opnieuw berekend.
+- CSV-export beschermt tekstvelden tegen interpretatie als spreadsheetformule; echte nul- en negatieve budgetten blijven bedragen.
+
+Upload gewijzigde PHP-bestanden en nieuwe helpers samen. Er is geen databasewijziging nodig voor deze verbeteringen. Het toegangsbestand, SMTP-configuratie en contractgegevens blijven runtimegegevens.
+
+Voer de volledige geïsoleerde controles uit met `cd lease/tests && npm ci && npm test`. De tests gebruiken tijdelijke configuratie, synthetische gegevens en PHP/Wasm; ze versturen geen echte mail en verbinden niet met de productiedatabase.

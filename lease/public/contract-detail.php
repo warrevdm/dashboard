@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../app/Database.php';
+require_once __DIR__ . '/../app/ExpiringContracts.php';
 
 $pdo = Database::connect();
 
@@ -51,7 +52,7 @@ function formatDateValue($value): string
         return 'Niet ingevuld';
     }
 
-    $date = DateTime::createFromFormat('Y-m-d', $value);
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value, new DateTimeZone('Europe/Brussels'));
 
     if (!$date) {
         return (string) $value;
@@ -75,14 +76,25 @@ function daysUntil($dateValue): ?int
         return null;
     }
 
-    $today = new DateTime('today');
-    $date = DateTime::createFromFormat('Y-m-d', $dateValue);
+    $zone = new DateTimeZone('Europe/Brussels');
+    $today = new DateTimeImmutable('today', $zone);
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $dateValue, $zone);
 
-    if (!$date) {
+    if (!$date || $date->format('Y-m-d') !== $dateValue) {
         return null;
     }
 
     return (int) $today->diff($date)->format('%r%a');
+}
+
+function threeMonthWindowDays(): int
+{
+    static $days = null;
+    if ($days === null) {
+        [$start, $end] = ExpiringContracts::window(new DateTimeImmutable('now', new DateTimeZone('Europe/Brussels')));
+        $days = (int) $start->diff($end)->days;
+    }
+    return $days;
 }
 
 function statusText(?int $days): string
@@ -95,7 +107,7 @@ function statusText(?int $days): string
         return 'Verlopen';
     }
 
-    if ($days <= 90) {
+    if ($days <= threeMonthWindowDays()) {
         return 'Binnen 3 maanden';
     }
 
@@ -112,7 +124,7 @@ function statusClass(?int $days): string
         return 'status-danger';
     }
 
-    if ($days <= 90) {
+    if ($days <= threeMonthWindowDays()) {
         return 'status-warning';
     }
 

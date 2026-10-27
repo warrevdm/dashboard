@@ -9,7 +9,7 @@ let php;
 (async () => {
   php = new PHP(await loadNodeRuntime('8.3', {fileLockManager: new FileLockManagerInMemory(), emscriptenOptions: {processId: process.pid}}));
   for (const folder of ['app', 'public/partials', 'storage/uploads']) php.mkdirTree('/lease/' + folder);
-  for (const name of ['ImportFile', 'ImportColumns', 'ImportValues']) php.writeFile('/lease/app/' + name + '.php', fs.readFileSync(path.join(root, 'app', name + '.php')));
+  for (const name of ['ImportFile', 'ImportColumns', 'ImportValues', 'ImportValidation']) php.writeFile('/lease/app/' + name + '.php', fs.readFileSync(path.join(root, 'app', name + '.php')));
   const headers = ['SO-number','Name','Bike','Bike Type','Frame Number','Pickup Date','End date','Dealer','Available Maintenance Budget','lease maatschap'];
   const synthetic = '\ufeff' + headers.join(';') + '\r\n' + 'SO000123;"Fixture; rider";"Bike\nmodel";Elektrische fiets (25km/h);0000123;24/10/2026;23/10/2029;Aerts Action Bike;0.00;cyclis\r\n' + 'SO000124;Fixture two;=SUM(1+1);Speedpedelec;0000456;;;Aerts Action Bike;-12.50;cyclis\r\n\r\n';
   php.writeFile('/lease/storage/uploads/synthetic.csv', synthetic);

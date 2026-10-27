@@ -9,7 +9,9 @@ final class ImportFile
     {
         if (strtolower(pathinfo($path, PATHINFO_EXTENSION)) !== 'csv') {
             require_once __DIR__ . '/../vendor/autoload.php';
-            return \PhpOffice\PhpSpreadsheet\IOFactory::load($path)->getActiveSheet()->toArray();
+            $rows = \PhpOffice\PhpSpreadsheet\IOFactory::load($path)->getActiveSheet()->toArray();
+            if (count($rows) < 2) throw new RuntimeException('Het bestand bevat geen gegevensrijen.');
+            return $rows;
         }
         $handle = fopen($path, 'rb');
         if ($handle === false) throw new RuntimeException('Bestand kon niet geopend worden.');
@@ -34,7 +36,7 @@ final class ImportFile
                 if ($rows && count($row) !== count($rows[0])) throw new RuntimeException('CSV bevat een rij met een afwijkend aantal kolommen. Controleer het bestand.');
                 $rows[] = $row;
             }
-            if (!$rows) throw new RuntimeException('Het bestand is leeg.');
+            if (count($rows) < 2) throw new RuntimeException('Het bestand is leeg of bevat geen gegevensrijen.');
             return $rows;
         } finally { fclose($handle); }
     }

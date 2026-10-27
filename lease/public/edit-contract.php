@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../app/Database.php';
+require_once __DIR__ . '/../app/ContractUpdate.php';
 
 $pdo = Database::connect();
 
@@ -32,6 +33,14 @@ if (!$order) {
     die('Contract niet gevonden.');
 }
 
+$editVersion = ContractUpdate::version($order);
+$editError = $_SESSION['lease_edit_error'][$id] ?? null;
+unset($_SESSION['lease_edit_error'][$id]);
+if (is_array($editError)) {
+    foreach (['so_number','customer_name','email','phone','company','lease_partner','bike_type','bike_name','frame_number','lease_start_date','lease_end_date','maintenance_budget','yearly_maintenance_end_date'] as $field) {
+        if (isset($editError['values'][$field])) $order[$field] = $editError['values'][$field];
+    }
+}
 $bikeTypes = [
     'elektrisch',
     'racefiets',
@@ -66,8 +75,10 @@ $bikeTypes = [
         <p>Pas ontbrekende of foutieve gegevens manueel aan. De SO-number blijft de unieke sleutel.</p>
     </section>
 
+    <?php if ($editError): ?><div class="card alert-warning" role="alert"><?= e($editError['message']) ?> <a href="edit-contract.php?id=<?= (int)$id ?>">Opgeslagen gegevens herladen</a></div><?php endif; ?>
     <form action="update-contract.php" method="POST" class="card">
         <?= Auth::csrfField() ?>
+        <input type="hidden" name="version" value="<?= e($editVersion) ?>">
         <input type="hidden" name="id" value="<?= e($order['id']) ?>">
 
         <h2>Basisgegevens</h2>
@@ -130,6 +141,7 @@ $bikeTypes = [
         </div>
 
         <h2>Leasing & onderhoud</h2>
+        <p>Bij Cyclis en O2O worden de budgetdatums automatisch herberekend wanneer je opslaat.</p>
 
         <div class="form-grid two-columns">
             <div class="form-group">

@@ -59,5 +59,7 @@ try {
 } catch (Throwable $e) {
     $pdo->rollBack();
 
-    die('Rollback mislukt: ' . $e->getMessage());
+    error_log('Lease rollback import mislukt: ' . $e->getMessage());
+    http_response_code(500);
+    exit('De import kon niet worden teruggedraaid. Er zijn geen wijzigingen opgeslagen. Neem contact op met de beheerder.');
 }
