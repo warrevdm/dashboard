@@ -19,6 +19,7 @@ require_once __DIR__ . '/pricing.php';
 require_once __DIR__ . '/mailer.php';
 require_once __DIR__ . '/contracts_v2.php';
 require_once __DIR__ . '/reservation_status.php';
+require_once __DIR__ . '/reservation_no_show.php';
 
 load_env(ROOT_PATH . '/.env');
 date_default_timezone_set(env('APP_TIMEZONE', 'Europe/Brussels'));

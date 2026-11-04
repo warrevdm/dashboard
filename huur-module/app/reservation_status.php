@@ -16,6 +16,15 @@ function handle_reservation_status_request(): never
 
     $id = (int) ($_GET['id'] ?? 0);
     $status = (string) ($_POST['status'] ?? '');
+    $current = find_reservation($id);
+    if ($status === 'no_show' || ($current['status'] ?? '') === 'no_show') {
+        try {
+            change_reservation_no_show($id, $status, (string)($_POST['no_show_reason'] ?? ''), ($_POST['confirm_no_show'] ?? '') === '1');
+            flash('success', $status === 'no_show' ? 'No-show geregistreerd. De fietsen zijn vrijgegeven; prijs en betalingen blijven bewaard.' : 'Reservatie opnieuw geopend na beschikbaarheidscontrole.');
+        } catch (DomainException $error) { flash('error', $error->getMessage()); }
+        catch (Throwable $error) { error_log('Reservatie no-show: ' . $error->getMessage()); flash('error', 'De wijziging kon niet worden opgeslagen. Herlaad het dossier en probeer opnieuw.'); }
+        redirect('reservation.php?id=' . $id);
+    }
     $allowed = ['reserved', 'confirmed', 'picked_up', 'returned', 'cancelled'];
     db()->beginTransaction();
     $reservation = find_reservation($id);
@@ -26,6 +35,11 @@ function handle_reservation_status_request(): never
         redirect('planning.php');
     }
 
+    if ($reservation['status'] === 'no_show') {
+        db()->rollBack();
+        flash('error', 'Dit dossier is intussen als no-show afgesloten. Herlaad het dossier.');
+        redirect('reservation.php?id=' . $id);
+    }
     $hasReturns = (bool) array_filter($reservation['bikes'], static fn(array $b): bool => !empty($b['returned_at']));
     if ($hasReturns && $status !== $reservation['status'] && !in_array($status, ['returned','cancelled'], true)) {
         db()->rollBack();

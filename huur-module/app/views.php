@@ -119,6 +119,7 @@ function status_label(string $status): string
         'picked_up' => 'Afgehaald',
         'returned' => 'Teruggebracht',
         'cancelled' => 'Geannuleerd',
+        'no_show' => 'Niet opgedaagd (no-show)',
         default => ucfirst($status),
     };
 }

@@ -46,3 +46,13 @@ gewijzigde contractinhoud, ondertekening en behoud van het ondertekende document
 `node --experimental-wasm-jspi huur-module/tests/workshop-board.cjs`
 
 Controleert dagselectie in Europe/Brussels, retourgrens, fietspakketten, HTML/JSON en toegangscontrole met synthetische gegevens.
+
+## No-show
+
+```bash
+node --experimental-wasm-jspi huur-module/tests/no-show-migration.cjs
+node --experimental-wasm-jspi huur-module/tests/no-show.cjs
+node --experimental-wasm-jspi huur-module/tests/no-show-contracts.cjs
+```
+
+Controleert migratie met bestaande dossiers, huur/testbeperkingen, medewerkersrechten, CSRF, vrijgeven/heropenen met beschikbaarheidscontrole, behoud van betalingen/historiek en blokkeren van ondertekening (ook bij een al geopend scherm).

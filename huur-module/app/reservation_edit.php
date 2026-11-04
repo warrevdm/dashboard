@@ -65,8 +65,8 @@ function update_reservation_details(int $id, array $input): void
         // rejects an upgrade to a writer if another writer changed this snapshot.
         $reservation = find_reservation($id);
         $contract = find_contract_by_reservation($id);
-        if (!$reservation || $reservation['status'] === 'cancelled') {
-            throw new DomainException('Een ontbrekend of geannuleerd dossier kan niet worden aangepast.');
+        if (!$reservation || in_array($reservation['status'], ['cancelled','no_show'], true)) {
+            throw new DomainException('Een ontbrekend, geannuleerd of no-show dossier kan niet worden aangepast.');
         }
         if (!hash_equals(reservation_edit_version($reservation, $contract), (string) ($input['version'] ?? ''))) {
             throw new DomainException('Dit dossier is intussen gewijzigd. Herlaad de pagina en controleer de nieuwste gegevens voordat je opnieuw opslaat.');

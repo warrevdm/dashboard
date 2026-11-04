@@ -17,7 +17,7 @@ if ($internal) {
     $contract = find_contract_by_id((int) ($_GET['contract_id'] ?? $_POST['contract_id'] ?? 0));
     if ($contract && empty($contract['signed_at'])) {
         $reservation = contract_reservation_data((int) $contract['reservation_id']);
-        if (!$reservation || $reservation['status'] === 'cancelled') $contract = null;
+        if (!$reservation || in_array($reservation['status'], ['cancelled','no_show'], true)) $contract = null;
     }
 } else {
     $contract = find_contract_by_token($token);
@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($contract['signed_at'])) {
         );
         if ($internal) redirect($signPage);
     } catch (Throwable $e) {
-        flash('error', $e instanceof RuntimeException ? $e->getMessage() : 'Ondertekenen is mislukt.');
+        flash('error', ($e instanceof RuntimeException || $e instanceof DomainException) ? $e->getMessage() : 'Ondertekenen is mislukt.');
         redirect($signPage);
     }
 }

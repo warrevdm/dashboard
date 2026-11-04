@@ -33,6 +33,7 @@ function db(): PDO
     ensure_reservation_kind_schema($pdo);
     ensure_replacement_management_schema($pdo);
     ensure_bike_return_schema($pdo);
+    ensure_reservation_no_show_schema($pdo);
 
     return $pdo;
 }
@@ -300,4 +301,83 @@ function ensure_bike_return_schema(PDO $pdo): void
         if (!in_array('returned_by', $columns, true)) $pdo->exec('ALTER TABLE reservation_bikes ADD COLUMN returned_by INTEGER');
         $pdo->exec('COMMIT');
     } catch (Throwable $e) { $pdo->exec('ROLLBACK'); throw $e; }
+}
+
+
+/** Extend SQLite's status CHECK without changing existing dossier data or references. */
+function ensure_reservation_no_show_schema(PDO $pdo): void
+{
+    $readSchema = static function () use ($pdo): array {
+        $sql = $pdo->query("SELECT sql FROM sqlite_master WHERE type='table' AND name='reservations'")->fetchColumn();
+        $columns = $sql ? $pdo->query('PRAGMA table_xinfo(reservations)')->fetchAll(PDO::FETCH_ASSOC) : [];
+        return ['sql'=>$sql, 'columns'=>$columns, 'has_reason'=>in_array('no_show_reason', array_column($columns, 'name'), true)];
+    };
+    $statusCheck = '/CHECK\s*\(\s*(?:"status"|`status`|\[status\]|status)\s+IN\s*\(\s*((?:\'[^\']*\'\s*,\s*)*\'[^\']*\')\s*\)\s*\)/i';
+    $acceptsNoShow = static function (array $schema) use ($statusCheck): bool {
+        return preg_match($statusCheck, (string)$schema['sql'], $match) === 1
+            && preg_match('/(?:^|,)\s*\'no_show\'\s*(?:,|$)/', $match[1]) === 1;
+    };
+    $schema = $readSchema();
+    if (!$schema['sql'] || ($schema['has_reason'] && $acceptsNoShow($schema))) return;
+    if ($pdo->inTransaction()) throw new RuntimeException('De no-showmigratie moet buiten een transactie starten.');
+    $foreignKeys = (int)$pdo->query('PRAGMA foreign_keys')->fetchColumn();
+    $transactionStarted = false;
+    $pdo->exec('PRAGMA foreign_keys = OFF');
+    try {
+        $pdo->exec('BEGIN IMMEDIATE');
+        $transactionStarted = true;
+        // Re-read after the write lock: another request may already have upgraded.
+        $schema = $readSchema();
+        if (!$schema['sql']) {
+            $pdo->exec('COMMIT');
+            $transactionStarted = false;
+            return;
+        }
+        if (!$schema['has_reason']) {
+            $pdo->exec('ALTER TABLE reservations ADD COLUMN no_show_reason TEXT');
+            $schema = $readSchema();
+        }
+        if (!$acceptsNoShow($schema)) {
+            $updatedSql = preg_replace_callback($statusCheck,
+                static fn(array $match): string => "CHECK(status IN (" . $match[1] . ", 'no_show'))",
+                (string)$schema['sql'], -1, $checkCount);
+            if ($updatedSql === null || $checkCount !== 1) throw new RuntimeException('De bestaande reservatiestatus kan niet veilig worden gemigreerd.');
+            $temporaryTable = 'reservations_no_show_migration';
+            $temporarySql = preg_replace(
+                '/\ACREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:"reservations"|`reservations`|\[reservations\]|reservations)(?=\s*\()/i',
+                'CREATE TABLE ' . $temporaryTable, $updatedSql, 1, $tableCount);
+            if ($temporarySql === null || $tableCount !== 1) throw new RuntimeException('De reservatietabel kan niet veilig worden gemigreerd.');
+            $objects = $pdo->query("SELECT sql FROM sqlite_master WHERE tbl_name='reservations' AND type IN ('index','trigger') AND sql IS NOT NULL ORDER BY CASE type WHEN 'index' THEN 0 ELSE 1 END, name")->fetchAll(PDO::FETCH_COLUMN);
+            $hasSequence = (bool)$pdo->query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'")->fetchColumn();
+            $oldSequence = $hasSequence ? $pdo->query("SELECT seq FROM sqlite_sequence WHERE name='reservations'")->fetchColumn() : false;
+            $columns = [];
+            foreach ($schema['columns'] as $column) {
+                if ((int)($column['hidden'] ?? 0) === 0) $columns[] = '"' . str_replace('"', '""', (string)$column['name']) . '"';
+            }
+            $columnList = implode(', ', $columns);
+            $pdo->exec($temporarySql);
+            $pdo->exec("INSERT INTO {$temporaryTable} ({$columnList}) SELECT {$columnList} FROM reservations");
+            $pdo->exec('DROP TABLE reservations');
+            // Preserve references in views and triggers on other tables verbatim.
+            $pdo->exec($updatedSql);
+            $pdo->exec("INSERT INTO reservations ({$columnList}) SELECT {$columnList} FROM {$temporaryTable}");
+            $pdo->exec("DROP TABLE {$temporaryTable}");
+            foreach ($objects as $sql) $pdo->exec((string)$sql);
+            if ($oldSequence !== false) {
+                $currentSequence = (int)$pdo->query("SELECT seq FROM sqlite_sequence WHERE name='reservations'")->fetchColumn();
+                $sequence = max((int)$oldSequence, $currentSequence);
+                $pdo->exec("DELETE FROM sqlite_sequence WHERE name='reservations'");
+                $stmt = $pdo->prepare('INSERT INTO sqlite_sequence(name,seq) VALUES(?,?)');
+                $stmt->execute(['reservations', $sequence]);
+            }
+        }
+        if ($pdo->query('PRAGMA foreign_key_check')->fetch()) throw new RuntimeException('De no-showmigratie is teruggedraaid wegens een foreign-keyfout.');
+        $pdo->exec('COMMIT');
+        $transactionStarted = false;
+    } catch (Throwable $error) {
+        if ($transactionStarted) $pdo->exec('ROLLBACK');
+        throw $error;
+    } finally {
+        $pdo->exec('PRAGMA foreign_keys = ' . ($foreignKeys ? 'ON' : 'OFF'));
+    }
 }

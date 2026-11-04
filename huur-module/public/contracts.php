@@ -9,7 +9,7 @@ $status = ($_GET['status'] ?? '') === 'signed' ? 'signed' : 'pending';
 $q = is_string($_GET['q'] ?? null) ? substr(trim($_GET['q']), 0, 100) : '';
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $base = " FROM rental_contracts c JOIN reservations r ON r.id=c.reservation_id JOIN customers u ON u.id=r.customer_id ";
-$filter = $status === 'signed' ? 'c.signed_at IS NOT NULL' : "c.signed_at IS NULL AND r.status <> 'cancelled'";
+$filter = $status === 'signed' ? 'c.signed_at IS NOT NULL' : "c.signed_at IS NULL AND r.status NOT IN ('cancelled','no_show')";
 $params = [];
 if ($q !== '') {
     $filter .= " AND (u.name LIKE :q OR c.contract_number LIKE :q OR EXISTS (SELECT 1 FROM reservation_bikes rb JOIN bikes b ON b.id=rb.bike_id WHERE rb.reservation_id=r.id AND (b.name LIKE :q OR b.code LIKE :q)))";

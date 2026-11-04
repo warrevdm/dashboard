@@ -277,3 +277,8 @@
         display: none;
     }
 }
+
+.status-no_show { background: #fff0d9; color: #75480d; border-color: #d5ad6b; }
+.no-show-panel { border: 1px solid #d5ad6b; background: #fffaf1; margin-bottom: 18px; }
+.no-show-panel summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
+.no-show-panel button:disabled { opacity: .6; cursor: not-allowed; }

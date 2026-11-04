@@ -13,6 +13,10 @@ if (!$reservation) {
 }
 
 $contract = find_contract_by_reservation($reservationId);
+if ($reservation['status'] === 'no_show' && (empty($contract['signed_at']) || ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST')) {
+    flash('error', 'Dit no-show dossier is afgesloten. Alleen een eerder ondertekend contract kan nog worden bekeken.');
+    redirect('reservation.php?id=' . $reservationId);
+}
 if (!$contract) {
     try {
         $contract = create_contract_for_reservation($reservationId);

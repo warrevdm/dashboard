@@ -91,7 +91,7 @@ $rentalStmt = db()->prepare(
          GROUP BY reservation_id
      ) payments ON payments.reservation_id = r.id
      WHERE (r.rental_kind = 'rental' OR (r.rental_kind = 'test' AND r.total_price > 0))
-       AND r.status != 'cancelled'
+       AND r.status NOT IN ('cancelled', 'no_show')
        AND r.start_at >= :from_at
        AND r.start_at < :to_exclusive
      ORDER BY r.start_at DESC, r.id DESC"
@@ -133,7 +133,7 @@ $receivableSql =
          GROUP BY reservation_id
      ) payments ON payments.reservation_id = r.id
      WHERE (r.rental_kind = 'rental' OR (r.rental_kind IN ('test', 'replacement') AND r.total_price > 0))
-       AND r.status != 'cancelled'
+       AND r.status NOT IN ('cancelled', 'no_show')
        AND (r.total_price - COALESCE(payments.paid_amount, 0)) > 0.009";
 
 $forecastStmt = db()->prepare(

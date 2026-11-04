@@ -30,6 +30,10 @@ if ((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
     verify_csrf();
     $action = (string) ($_POST['action'] ?? '');
+    if ($reservation['status'] === 'no_show') {
+        flash('error', 'Dit no-show dossier is afgesloten. Heropen het eerst na beschikbaarheidscontrole om wijzigingen te maken.');
+        redirect('reservation.php?id=' . $id);
+    }
 
     if ($action === 'return-bike') {
         try {
@@ -109,7 +113,7 @@ if ((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 
     if ($action === 'cancel-replacement') {
-        if (!$isReplacementReservation || in_array((string) $reservation['status'], ['returned', 'cancelled'], true)) {
+        if (!$isReplacementReservation || in_array((string) $reservation['status'], ['returned', 'cancelled', 'no_show'], true)) {
             flash('error', 'Deze vervangfietsplanning kan niet meer uit de planning worden verwijderd.');
             redirect('reservation.php?id=' . $id);
         }
@@ -304,7 +308,8 @@ $paymentSummary = reservation_payment_summary($id, (float) $reservation['total_p
 $rentalKind = (string) ($reservation['rental_kind'] ?? 'rental');
 $isReplacement = $rentalKind === 'replacement';
 $isTest = $rentalKind === 'test';
-$canEdit = !$isFinanceView && (string) $reservation['status'] !== 'cancelled';
+$isNoShow = $reservation['status'] === 'no_show';
+$canEdit = !$isFinanceView && !in_array((string)$reservation['status'], ['cancelled','no_show'], true);
 $replacementBikeOptions = $canEdit ? all_bikes(true) : [];
 $editValues = $editInput ?? [
     'customer_name' => (string) $reservation['customer_name'],
@@ -332,6 +337,35 @@ render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
 <?php endif; ?>
 <?php if ($editError !== null): ?>
     <div class="alert alert-error" role="alert"><?= e($editError) ?> <a href="reservation.php?id=<?= $id ?>#dossier-bewerken">Dossier herladen</a></div>
+<?php endif; ?>
+<?php if ($reservation['status'] === 'no_show'): ?>
+    <section class="card no-show-panel" role="status">
+        <h2>Niet opgedaagd (no-show)</h2>
+        <p>Deze reservatie blokkeert geen fietsen meer. De afgesproken prijs en geregistreerde betalingen blijven als historiek bewaard; er is geen automatische kost of terugbetaling.</p>
+        <p>Geregistreerd door <?= e($reservation['closed_by_name'] ?: 'Onbekend') ?><?= !empty($reservation['closed_at']) ? ' op ' . e((new DateTimeImmutable($reservation['closed_at'], new DateTimeZone('UTC')))->setTimezone(new DateTimeZone('Europe/Brussels'))->format('d/m/Y H:i')) : '' ?>.</p>
+        <?php if (!empty($reservation['no_show_reason'])): ?><p><strong>Reden:</strong> <?= e($reservation['no_show_reason']) ?></p><?php endif; ?>
+        <?php if (!$isFinanceView): ?>
+            <form method="post" action="index.php?route=reservation-status&amp;id=<?= $id ?>" class="actions">
+                <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
+                <input type="hidden" name="status" value="confirmed">
+                <button type="submit" class="button button-secondary">Opnieuw bevestigen en beschikbaarheid controleren</button>
+                <a class="button button-secondary" href="reservation-new.php">Nieuwe reservatie maken</a>
+            </form>
+        <?php endif; ?>
+    </section>
+<?php elseif (!$isFinanceView && in_array($reservation['rental_kind'], ['rental','test'], true) && in_array($reservation['status'], ['reserved','confirmed'], true)): ?>
+    <details class="card no-show-panel">
+        <summary>Klant niet komen opdagen?</summary>
+        <p>Registreer een no-show als de klant de fietsen niet heeft afgehaald. Alle fietsen komen dan opnieuw beschikbaar.</p>
+        <form method="post" action="index.php?route=reservation-status&amp;id=<?= $id ?>" class="stack">
+            <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
+            <input type="hidden" name="status" value="no_show">
+            <div class="field"><label for="no-show-reason">Reden of opmerking (optioneel)</label><textarea id="no-show-reason" name="no_show_reason" maxlength="1000" rows="2"></textarea></div>
+            <label><input type="checkbox" name="confirm_no_show" value="1" required> Ik bevestig dat de klant niet is komen opdagen en dat de fietsen vrijgegeven mogen worden.</label>
+            <button type="submit" class="button button-secondary" <?= reservation_can_mark_no_show($reservation) ? '' : 'disabled' ?>>Als no-show registreren</button>
+            <?php if (!reservation_can_mark_no_show($reservation)): ?><p class="help">Beschikbaar vanaf het afgesproken startuur: <?= e((new DateTimeImmutable($reservation['start_at']))->format('d/m/Y H:i')) ?>.</p><?php endif; ?>
+        </form>
+    </details>
 <?php endif; ?>
 <section class="grid" data-finance-readonly="<?= $isFinanceView ? '1' : '0' ?>">
     <div class="card col-8">
@@ -429,14 +463,14 @@ render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
         <h2>Huurovereenkomst</h2>
         <?php if (!$contract): ?>
             <p class="muted">Nog geen contract opgemaakt.</p>
-            <?php if (!$isFinanceView): ?><a class="button" href="contract.php?reservation_id=<?= $id ?>">Gezamenlijk contract opmaken</a><?php endif; ?>
+            <?php if (!$isFinanceView && !$isNoShow): ?><a class="button" href="contract.php?reservation_id=<?= $id ?>">Gezamenlijk contract opmaken</a><?php endif; ?>
         <?php elseif (!empty($contract['signed_at'])): ?>
             <p><span class="badge status-confirmed">Ondertekend</span></p>
             <p class="muted">Door <?= e((string) $contract['signer_name']) ?> op <?= e((new DateTimeImmutable((string) $contract['signed_at']))->format('d/m/Y H:i')) ?>.</p>
             <?php if (!$isFinanceView): ?><a class="button" href="contract.php?reservation_id=<?= $id ?>">Contract bekijken</a><?php endif; ?>
         <?php else: ?>
-            <p><span class="badge status-reserved">Wacht op handtekening</span></p>
-            <?php if (!$isFinanceView): ?><a class="button" href="contract.php?reservation_id=<?= $id ?>">Naar ondertekening</a><?php endif; ?>
+            <p><span class="badge status-reserved"><?= $isNoShow ? 'Ondertekening geblokkeerd · no-show' : 'Wacht op handtekening' ?></span></p>
+            <?php if (!$isFinanceView && !$isNoShow): ?><a class="button" href="contract.php?reservation_id=<?= $id ?>">Naar ondertekening</a><?php endif; ?>
         <?php endif; ?>
         <?php endif; ?>
 
@@ -452,7 +486,7 @@ render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
             </div>
         <?php else: ?>
             <p class="muted">Nog niet bevestigd.<?= $isFinanceView ? '' : ' Voer deze controle uit wanneer de huurder fysiek aanwezig is.' ?></p>
-            <?php if (!$isFinanceView): ?>
+            <?php if (!$isFinanceView && !$isNoShow): ?>
             <form method="post" class="stack">
                 <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
                 <input type="hidden" name="id" value="<?= $id ?>">
@@ -486,7 +520,7 @@ render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
             <?php if (!$isFinanceView): ?><a class="button button-secondary" href="index.php?route=id-download&amp;id=<?= (int) $reservation['document_id'] ?>">Veilig openen</a><?php endif; ?>
         <?php else: ?>
             <p class="muted">Geen document gekoppeld.</p>
-            <?php if (!$isFinanceView && $reservation['status'] !== 'cancelled'): ?>
+            <?php if (!$isFinanceView && !in_array($reservation['status'], ['cancelled','no_show'], true)): ?>
                 <form method="post" enctype="multipart/form-data" class="stack">
                     <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
                     <input type="hidden" name="id" value="<?= $id ?>">
@@ -633,10 +667,10 @@ render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
             <div class="payment-summary-grid">
                 <div><span>Vervangkost</span><strong>€ <?= number_format((float) $reservation['total_price'], 2, ',', '.') ?></strong></div>
                 <div><span>Betaald</span><strong>€ <?= number_format((float) $paymentSummary['paid'], 2, ',', '.') ?></strong></div>
-                <div><span>Openstaand</span><strong>€ <?= number_format((float) $paymentSummary['outstanding'], 2, ',', '.') ?></strong></div>
+                <div><span><?= $isNoShow ? 'Vordering bij no-show' : 'Openstaand' ?></span><strong><?= $isNoShow ? 'Niet toegepast' : '€ ' . number_format((float) $paymentSummary['outstanding'], 2, ',', '.') ?></strong></div>
             </div>
 
-            <?php if (!$isFinanceView && (string) $reservation['status'] !== 'cancelled'): ?>
+            <?php if (!$isFinanceView && !in_array((string)$reservation['status'], ['cancelled','no_show'], true)): ?>
                 <form method="post" class="form-grid mt-18">
                     <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
                     <input type="hidden" name="id" value="<?= $id ?>">
@@ -695,7 +729,7 @@ render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
             <?php endif; ?>
         </div>
 
-        <?php if (!$isFinanceView && !in_array((string) $reservation['status'], ['returned', 'cancelled'], true)): ?>
+        <?php if (!$isFinanceView && !in_array((string) $reservation['status'], ['returned', 'cancelled', 'no_show'], true)): ?>
         <div class="card col-12" id="vervangfiets-verwijderen">
             <h2>Uit planning verwijderen</h2>
             <p class="muted">De reservatie verdwijnt uit de planning, maar blijft bewaard als geannuleerd dossier voor historiek en audit.</p>
@@ -717,10 +751,12 @@ render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
     <div class="card col-12 payment-card" id="betalingen">
         <div class="actions actions-between">
             <div>
-                <h2><?= $isFinanceView ? 'Betalingen' : 'Betalingen registreren' ?></h2>
-                <p class="muted"><?= $isFinanceView ? 'Financieel overzicht van deze reservatie.' : 'Log iedere betaling rechtstreeks op deze reservatie, met betaalwijze, medewerker, datum en uur.' ?></p>
+                <h2><?= $isFinanceView || $isNoShow ? 'Betalingshistoriek' : 'Betalingen registreren' ?></h2>
+                <p class="muted"><?= $isNoShow ? 'Alleen historiek: een no-show past de oorspronkelijke prijs of ontvangen betalingen niet automatisch aan.' : ($isFinanceView ? 'Financieel overzicht van deze reservatie.' : 'Log iedere betaling rechtstreeks op deze reservatie, met betaalwijze, medewerker, datum en uur.') ?></p>
             </div>
-            <?php if ($isTest && (float) $reservation['total_price'] <= 0): ?>
+            <?php if ($isNoShow): ?>
+                <span class="payment-state">No-show · historiek</span>
+            <?php elseif ($isTest && (float) $reservation['total_price'] <= 0): ?>
                 <span class="payment-state payment-paid">Geen kost</span>
             <?php elseif ($paymentSummary['is_paid']): ?>
                 <span class="payment-state payment-paid">Volledig afgerekend</span>
@@ -734,10 +770,10 @@ render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
         <div class="payment-summary-grid">
             <div><span>Totaal</span><strong>€ <?= number_format((float) $reservation['total_price'], 2, ',', '.') ?></strong></div>
             <div><span>Betaald</span><strong>€ <?= number_format((float) $paymentSummary['paid'], 2, ',', '.') ?></strong></div>
-            <div><span>Openstaand</span><strong>€ <?= number_format((float) $paymentSummary['outstanding'], 2, ',', '.') ?></strong></div>
+            <div><span><?= $isNoShow ? 'Vordering bij no-show' : 'Openstaand' ?></span><strong><?= $isNoShow ? 'Niet toegepast' : '€ ' . number_format((float) $paymentSummary['outstanding'], 2, ',', '.') ?></strong></div>
         </div>
 
-        <?php if (!$isFinanceView && empty($contract['signed_at'])): ?>
+        <?php if (!$isFinanceView && !$isNoShow && empty($contract['signed_at'])): ?>
             <form method="post" class="payment-price-form mt-18">
                 <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
                 <input type="hidden" name="id" value="<?= $id ?>">
@@ -751,7 +787,7 @@ render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
             </form>
         <?php endif; ?>
 
-        <?php if (!$isFinanceView && !$paymentSummary['is_paid'] && (float) $reservation['total_price'] > 0): ?>
+        <?php if (!$isFinanceView && !$isNoShow && !$paymentSummary['is_paid'] && (float) $reservation['total_price'] > 0): ?>
             <form method="post" class="payment-entry-form mt-18">
                 <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
                 <input type="hidden" name="id" value="<?= $id ?>">
@@ -761,11 +797,11 @@ render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
                 <div class="field"><label>Notitie</label><input name="note" placeholder="Bijvoorbeeld voorschot of restbetaling"></div>
                 <button class="button" type="submit">Betaling registreren</button>
             </form>
-        <?php elseif (!$isFinanceView && $isTest && (float) $reservation['total_price'] <= 0): ?>
+        <?php elseif (!$isFinanceView && !$isNoShow && $isTest && (float) $reservation['total_price'] <= 0): ?>
             <p class="help mt-18">Aan deze test is geen kost gekoppeld.</p>
-        <?php elseif (!$isFinanceView && (float) $reservation['total_price'] <= 0): ?>
+        <?php elseif (!$isFinanceView && !$isNoShow && (float) $reservation['total_price'] <= 0): ?>
             <div class="alert alert-warning mt-18">Stel hierboven eerst de totaalprijs in om een betaling te kunnen registreren.</div>
-        <?php elseif (!$isFinanceView): ?>
+        <?php elseif (!$isFinanceView && !$isNoShow): ?>
             <div class="alert alert-success mt-18">Deze reservatie is volledig afgerekend. Nieuwe betalingen zijn geblokkeerd om dubbel registreren te voorkomen.</div>
         <?php endif; ?>
 
@@ -791,6 +827,7 @@ render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
     <?php if (!$isFinanceView): ?>
     <?php require __DIR__ . '/reservation-stamp.php'; ?>
 
+    <?php if ($reservation['status'] !== 'no_show'): ?>
     <div class="card col-12">
         <h2>Status wijzigen</h2>
         <form method="post" action="index.php?route=reservation-status&amp;id=<?= $id ?>" class="actions">
@@ -800,6 +837,7 @@ render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
             <a class="button button-secondary" href="planning.php?start=<?= e((new DateTimeImmutable((string) $reservation['start_at']))->format('Y-m-d')) ?>">Toon in planning</a>
         </form>
     </div>
+    <?php endif; ?>
     <?php endif; ?>
     <?php endif; ?>
 </section>

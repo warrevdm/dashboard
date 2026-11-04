@@ -15,7 +15,7 @@ const {loadNodeRuntime}=req('@php-wasm/node');
  INSERT INTO bikes(id,code,name,category,usage_type,daily_rate,status) VALUES(1,'E01','E-bike 01','E-bike','rental',30,'active'),(2,'E02','E-bike 02','E-bike','rental',30,'active'),(3,'S01','Stadsfiets 01','Stadsfiets','replacement_rental',15,'active'),(4,'T01','Testfiets 01','E-bike','test',30,'active');
  INSERT INTO customers(id,name,email,phone,address) VALUES(1,'Voorbeeldklant','klant@example.test','0400 00 00 00','Voorbeeldstraat 1'),(2,'Demo klant','demo@example.test','','');");
  $today=date('Y-m-d'); $end=date('Y-m-d',strtotime('+2 days')); $past=date('Y-m-d',strtotime('-1 day'));
- db()->exec("INSERT INTO reservations(id,bike_id,customer_id,start_at,end_at,status,rental_kind,total_price,created_by) VALUES(1,1,1,'$today 09:00:00','$end 17:00:00','confirmed','rental',180,1),(2,3,2,'$past 09:00:00','$today 17:00:00','picked_up','replacement',0,1); INSERT INTO reservation_bikes VALUES(1,1,30),(1,2,30),(2,3,15);");`);
+ db()->exec("INSERT INTO reservations(id,bike_id,customer_id,start_at,end_at,status,rental_kind,total_price,created_by) VALUES(1,1,1,'$today 09:00:00','$end 17:00:00','confirmed','rental',180,1),(2,3,2,'$past 09:00:00','$today 17:00:00','picked_up','replacement',0,1); INSERT INTO reservation_bikes(reservation_id,bike_id,daily_rate) VALUES(1,1,30),(1,2,30),(2,3,15);");`);
 
  await run("require '/demo/app/bootstrap.php'; create_contract_for_reservation(1);");
  let checks=0;

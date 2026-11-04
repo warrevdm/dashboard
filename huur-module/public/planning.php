@@ -124,6 +124,7 @@ if ($focus !== '') {
     ));
 }
 $overdue = overdue_rentals(db(), new DateTimeImmutable());
+$noShows = reservation_no_shows($start, $end, $selectedCategory, $selectedUsage);
 $counts = reservation_counts();
 $byBike = [];
 foreach ($events as $event) {
@@ -181,6 +182,7 @@ render_overdue_rentals($overdue);
             <a href="planning.php?days=14<?= e($categoryParam . $usageParam) ?>">14 dagen</a>
             <a href="planning.php?days=28<?= e($categoryParam . $usageParam) ?>">28 dagen</a>
             <a class="button" href="reservation-new.php">+ Nieuwe verhuur</a>
+            <?php if ($noShows): ?><a class="button button-secondary" href="#no-shows">Niet opgedaagd (<?= count($noShows) ?>)</a><?php endif; ?>
         </div>
     </div>
 
@@ -331,4 +333,18 @@ render_overdue_rentals($overdue);
         </table></div>
     <?php endif; ?>
 </section>
+<?php if ($noShows): ?>
+<section class="card mt-18 no-show-panel" id="no-shows">
+    <details>
+        <summary>Niet opgedaagd · <?= count($noShows) ?> dossier(s) in deze periode</summary>
+        <p>Deze fietsen zijn vrijgegeven. Hieronder staan de laatste 100 no-shows met een startdatum in de gekozen periode en met de gekozen fietsfilters.</p>
+        <div class="table-wrap"><table><thead><tr><th>Afhaalmoment</th><th>Klant</th><th>Fietsen</th><th>Opmerking</th><th>Dossier</th></tr></thead><tbody>
+        <?php foreach ($noShows as $item): ?><tr>
+            <td><?= e((new DateTimeImmutable($item['start_at']))->format('d/m/Y H:i')) ?></td>
+            <td><?= e($item['customer_name']) ?></td><td><?= e($item['bikes']) ?></td><td><?= e($item['no_show_reason'] ?: '—') ?></td>
+            <td><a href="reservation.php?id=<?= (int)$item['id'] ?>">#<?= (int)$item['id'] ?> openen</a></td>
+        </tr><?php endforeach; ?></tbody></table></div>
+    </details>
+</section>
+<?php endif; ?>
 <?php render_footer('planning');

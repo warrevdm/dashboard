@@ -19,7 +19,7 @@ function attach_reservation_identity_document(int $reservationId, array $file, s
     db()->beginTransaction();
     try {
         $reservation = find_reservation($reservationId);
-        if (!$reservation || $reservation['status'] === 'cancelled') {
+        if (!$reservation || in_array($reservation['status'], ['cancelled','no_show'], true)) {
             throw new DomainException('Dit dossier kan niet meer worden aangepast.');
         }
         if ($reservation['document_id'] && !$reservation['document_deleted_at']) {
