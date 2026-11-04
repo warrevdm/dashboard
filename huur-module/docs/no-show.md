@@ -1,6 +1,6 @@
 # Niet opgedaagd (no-show)
 
-Open vanuit de planning het dossier en klap **Klant niet komen opdagen?** open. Vanaf het afgesproken startuur kan een medewerker of beheerder bevestigen dat de klant niet is opgedaagd. Een reden is optioneel, maximaal 1000 tekens.
+Open vanuit de planning het dossier. Kies **Niet opgedaagd (no-show)** bij **Status wijzigen** of in **Dossier aanpassen → Status**. Je kunt ook **Klant niet komen opdagen?** openklappen. Vanaf het afgesproken startuur kan een medewerker of beheerder bevestigen dat de klant niet is opgedaagd. Een reden is optioneel, maximaal 1000 tekens.
 
 Dit is mogelijk bij Huur en Test met status Gereserveerd of Bevestigd. Een afgehaalde, teruggebrachte of geannuleerde reservatie kan geen no-show worden. Er is geen automatische detectie: een medewerker controleert dit zelf.
 

@@ -54,7 +54,7 @@ function update_reservation_details(int $id, array $input): void
     if (!in_array($kind, ['rental', 'test', 'replacement'], true)) {
         throw new DomainException('Kies Huur, Test of Vervang.');
     }
-    if (!in_array($status, ['reserved', 'confirmed', 'picked_up', 'returned'], true)) {
+    if (!in_array($status, ['reserved', 'confirmed', 'picked_up', 'returned', 'no_show'], true)) {
         throw new DomainException('Kies een geldige status.');
     }
 
@@ -72,6 +72,9 @@ function update_reservation_details(int $id, array $input): void
             throw new DomainException('Dit dossier is intussen gewijzigd. Herlaad de pagina en controleer de nieuwste gegevens voordat je opnieuw opslaat.');
         }
 
+        if ($status === 'no_show' && !reservation_can_mark_no_show($reservation)) {
+            throw new DomainException('No-show is alleen mogelijk bij een niet-afgehaalde huur- of testreservatie vanaf het afgesproken startuur.');
+        }
         $returnedBikes = array_filter($reservation['bikes'], static fn(array $b): bool => !empty($b['returned_at']));
         if ($returnedBikes && $status !== $reservation['status'] && $status !== 'returned') {
             throw new DomainException('Een dossier met geregistreerde fietsretours kan niet opnieuw geopend of teruggezet worden. Maak voor een nieuwe uitgifte een nieuwe reservatie.');
@@ -126,7 +129,7 @@ function update_reservation_details(int $id, array $input): void
         foreach ($bikes as $bike) {
             // Returned dossiers no longer occupy a bike. Their original planned
             // period may overlap a later booking after an early return.
-            if (empty($bike['returned_at']) && $status !== 'returned' && reservation_conflicts((int) $bike['id'], $start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s'), $id)) {
+            if (empty($bike['returned_at']) && !in_array($status, ['returned','no_show'], true) && reservation_conflicts((int) $bike['id'], $start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s'), $id)) {
                 throw new DomainException('De periode overlapt met een andere reservatie voor ' . $bike['code'] . ' — ' . $bike['name'] . '. Kies een andere periode.');
             }
         }
@@ -173,7 +176,7 @@ function update_reservation_details(int $id, array $input): void
         $stmt->execute([
             ':start_at' => $start->format('Y-m-d H:i:s'), ':end_at' => $end->format('Y-m-d H:i:s'),
             ':total_price' => $newTotal,
-            ':kind' => $kind, ':status' => $status, ':notes' => $notes !== '' ? $notes : null,
+            ':kind' => $kind, ':status' => $status === 'no_show' ? $reservation['status'] : $status, ':notes' => $notes !== '' ? $notes : null,
             ':bike_id' => $bikeChanged ? (int) $bikes[0]['id'] : (int) $reservation['bike_id'],
             ':closed_at' => $status === 'returned' ? ($reservation['closed_at'] ?: gmdate('Y-m-d H:i:s')) : null,
             ':closed_by' => $status === 'returned' ? ($reservation['closed_by'] ?: (int) current_user()['id']) : null,
@@ -204,7 +207,10 @@ function update_reservation_details(int $id, array $input): void
             $stmt->execute([':id' => $contract['id']]);
         }
 
-        audit('update_reservation_details', 'reservation', $id, [
+        if ($status === 'no_show') {
+            mark_reservation_no_show_in_transaction(find_reservation($id), (string)($input['no_show_reason'] ?? ''), ($input['confirm_no_show'] ?? '') === '1');
+        }
+        audit('update_reservation_details' , 'reservation', $id, [
             'old_start_at' => $reservation['start_at'], 'new_start_at' => $start->format('Y-m-d H:i:s'),
             'old_end_at' => $reservation['end_at'], 'new_end_at' => $end->format('Y-m-d H:i:s'),
             'old_rental_kind' => $reservation['rental_kind'], 'new_rental_kind' => $kind,

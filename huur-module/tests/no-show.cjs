@@ -52,5 +52,16 @@ const {PHP,FileLockManagerInMemory}=req('@php-wasm/universal');const {loadNodeRu
  await run("require '/test/app/bootstrap.php';db()->exec(\"UPDATE reservations SET status='reserved' WHERE id=2\");",opts);
  const mark=await run(`$_POST=['status'=>'no_show','_token'=>'${token}','confirm_no_show'=>'1','no_show_reason'=>'Route fixture'];require '/test/public/index.php';`,{...statusOpts,relativeUri:'/huur-module/index.php?route=reservation-status&id=2'});
  assert.equal(mark.httpStatusCode,302);assert.equal((await run("require '/test/app/bootstrap.php';echo find_reservation(2)['status'];",opts)).text,'no_show');
- console.log('PASS real dossier read-only/no-show actions, CSRF, generic status bypass, escaped planning history and staff mark-route checks.');
+ await run("require '/test/app/bootstrap.php';db()->exec(\"UPDATE reservations SET status='confirmed', no_show_reason=NULL WHERE id=2\");",opts);
+ const editable=await run("require '/test/public/reservation.php';",{...opts,relativeUri:'/huur-module/reservation.php?id=2'});
+ assert.equal((editable.text.match(/<option value="no_show"/g)||[]).length,2);
+ assert.ok(editable.text.includes('data-no-show-fields')&&editable.text.includes('reservation-status.js'));
+ const edited=await run(`require '/test/app/bootstrap.php';require '/test/app/reservation_edit.php';$_SESSION['user']=['id'=>1,'role'=>'staff'];
+ $r=find_reservation(2);$data=['customer_name'=>$r['customer_name'],'customer_email'=>$r['customer_email'],'customer_phone'=>'','customer_address'=>'','rental_kind'=>'test','status'=>'no_show','start_date'=>'2000-01-01','start_time'=>'09:00','end_date'=>'2099-12-31','end_time'=>'17:00','notes'=>'Edited and closed','version'=>reservation_edit_version($r,find_contract_by_reservation(2)),'no_show_reason'=>'Edit choice'];
+ try{update_reservation_details(2,$data);throw new Exception('Missing confirmation accepted');}catch(DomainException $e){}
+ if(find_reservation(2)['status']!=='confirmed'||find_reservation(2)['notes']==='Edited and closed')throw new Exception('Failed edit was not rolled back');
+ $data['confirm_no_show']='1';update_reservation_details(2,$data);$saved=find_reservation(2);
+ if($saved['status']!=='no_show'||$saved['notes']!=='Edited and closed'||$saved['no_show_reason']!=='Edit choice')throw new Exception('Combined edit did not save');
+ echo 'PASS combined edit choice, required confirmation and atomic rollback.';`,opts);console.log(edited.text);
+ console.log('PASS two status dropdowns, real dossier no-show actions, CSRF, bypass protection and planning history.');
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>{try{php?.exit();}catch{}process.exit(process.exitCode||0);});

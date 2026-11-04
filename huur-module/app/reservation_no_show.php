@@ -11,6 +11,26 @@ function reservation_can_mark_no_show(array $reservation, ?DateTimeImmutable $no
         && !array_filter($reservation['bikes'] ?? [], static fn(array $bike): bool => !empty($bike['returned_at']));
 }
 
+/** Shared by the status action and dossier editing; caller owns the transaction. */
+function mark_reservation_no_show_in_transaction(array $reservation, string $reason, bool $confirmed): void
+{
+    $pdo = db();
+    if (!$pdo->inTransaction()) throw new LogicException('No-show moet binnen een transactie worden verwerkt.');
+    $user = find_user((int)(current_user()['id'] ?? 0));
+    if (!$user || !(int)$user['active'] || !in_array($user['role'], ['admin','staff'], true)) throw new DomainException('Geen rechten om een no-show te registreren.');
+    if ($reservation['status'] === 'no_show') return;
+    $reason = trim($reason);
+    if (mb_strlen($reason) > 1000) throw new DomainException('De reden mag maximaal 1000 tekens bevatten.');
+    if (!$confirmed) throw new DomainException('Bevestig dat de klant niet is komen opdagen.');
+    if (!reservation_can_mark_no_show($reservation)) throw new DomainException('No-show is alleen mogelijk bij een niet-afgehaalde huur- of testreservatie vanaf het afgesproken startuur.');
+    $id = (int)$reservation['id'];
+    $stmt = $pdo->prepare("UPDATE reservations SET status='no_show', no_show_reason=?, closed_by=?, closed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?");
+    $stmt->execute([$reason ?: null, $user['id'], $id]);
+    $stmt = $pdo->prepare('UPDATE rental_contracts SET public_token_hash=NULL, public_token_expires_at=NULL, updated_at=CURRENT_TIMESTAMP WHERE reservation_id=? AND signed_at IS NULL');
+    $stmt->execute([$id]);
+    audit('reservation_no_show', 'reservation', $id, ['from_status'=>$reservation['status'], 'reason'=>$reason, 'bike_ids'=>array_column($reservation['bikes'],'id')]);
+}
+
 /** Explicit transition; no fees, refunds or removal of historical records. */
 function change_reservation_no_show(int $id, string $target, string $reason = '', bool $confirmed = false): void
 {
@@ -24,14 +44,7 @@ function change_reservation_no_show(int $id, string $target, string $reason = ''
         $reason = trim($reason);
         if (mb_strlen($reason) > 1000) throw new DomainException('De reden mag maximaal 1000 tekens bevatten.');
         if ($target === 'no_show') {
-            if ($reservation['status'] === 'no_show') { $pdo->commit(); return; }
-            if (!$confirmed) throw new DomainException('Bevestig dat de klant niet is komen opdagen.');
-            if (!reservation_can_mark_no_show($reservation)) throw new DomainException('No-show is alleen mogelijk bij een niet-afgehaalde huur- of testreservatie vanaf het afgesproken startuur.');
-            $stmt = $pdo->prepare("UPDATE reservations SET status='no_show', no_show_reason=?, closed_by=?, closed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?");
-            $stmt->execute([$reason ?: null, $user['id'], $id]);
-            $stmt = $pdo->prepare('UPDATE rental_contracts SET public_token_hash=NULL, public_token_expires_at=NULL, updated_at=CURRENT_TIMESTAMP WHERE reservation_id=? AND signed_at IS NULL');
-            $stmt->execute([$id]);
-            audit('reservation_no_show', 'reservation', $id, ['from_status'=>$reservation['status'], 'reason'=>$reason, 'bike_ids'=>array_column($reservation['bikes'],'id')]);
+            mark_reservation_no_show_in_transaction($reservation, $reason, $confirmed);
         } else {
             if ($reservation['status'] !== 'no_show' || !in_array($target, ['reserved','confirmed'], true)) throw new DomainException('Heropen een no-show als gereserveerd of bevestigd.');
             $now = new DateTimeImmutable('now', new DateTimeZone('Europe/Brussels'));

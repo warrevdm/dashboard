@@ -576,7 +576,14 @@ render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
                         <?php foreach (['reserved', 'confirmed', 'picked_up', 'returned'] as $value): ?>
                             <option value="<?= e($value) ?>" <?= ($editValues['status'] ?? '') === $value ? 'selected' : '' ?>><?= e(status_label($value)) ?></option>
                         <?php endforeach; ?>
+                        <?php if (in_array($reservation['rental_kind'], ['rental','test'], true)): ?>
+                            <option value="no_show" <?= ($editValues['status'] ?? '') === 'no_show' ? 'selected' : '' ?> <?= reservation_can_mark_no_show($reservation) ? '' : 'disabled' ?>><?= e(status_label('no_show')) ?></option>
+                        <?php endif; ?>
                     </select>
+                </div>
+                <div class="field field-full" data-no-show-fields>
+                    <label>Reden no-show (optioneel)<textarea name="no_show_reason" rows="2" maxlength="1000"><?= e((string)($editValues['no_show_reason'] ?? '')) ?></textarea></label>
+                    <label><input type="checkbox" name="confirm_no_show" value="1" data-no-show-confirm <?= ($editValues['confirm_no_show'] ?? '') === '1' ? 'checked' : '' ?>> Bij no-show: ik bevestig dat de klant niet is opgedaagd en de fietsen vrijgegeven mogen worden.</label>
                 </div>
                 <details class="field field-full dossier-bikes" data-dossier-bikes data-original-total="<?= e((string) $reservation['total_price']) ?>">
                     <summary class="dossier-bikes-summary"><span>Stel het fietspakket samen</span><span class="dossier-bikes-count" data-bike-count aria-live="polite"></span><span class="dossier-bikes-toggle" aria-hidden="true"></span></summary>
@@ -832,7 +839,11 @@ render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
         <h2>Status wijzigen</h2>
         <form method="post" action="index.php?route=reservation-status&amp;id=<?= $id ?>" class="actions">
             <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
-            <select class="select-narrow" name="status"><?php foreach (['reserved', 'confirmed', 'picked_up', 'returned', 'cancelled'] as $status): ?><option value="<?= e($status) ?>" <?= $reservation['status'] === $status ? 'selected' : '' ?>><?= e(status_label($status)) ?></option><?php endforeach; ?></select>
+            <select class="select-narrow" name="status"><?php foreach (['reserved', 'confirmed', 'picked_up', 'returned', 'cancelled'] as $status): ?><option value="<?= e($status) ?>" <?= $reservation['status'] === $status ? 'selected' : '' ?>><?= e(status_label($status)) ?></option><?php endforeach; ?><?php if (in_array($reservation['rental_kind'], ['rental','test'], true)): ?><option value="no_show" <?= reservation_can_mark_no_show($reservation) ? '' : 'disabled' ?>><?= e(status_label('no_show')) ?></option><?php endif; ?></select>
+            <div class="field field-full" data-no-show-fields>
+                <label>Reden no-show (optioneel)<textarea name="no_show_reason" rows="2" maxlength="1000"></textarea></label>
+                <label><input type="checkbox" name="confirm_no_show" value="1" data-no-show-confirm> Bij no-show: ik bevestig dat de klant niet is opgedaagd en de fietsen vrijgegeven mogen worden.</label>
+            </div>
             <button class="button">Status opslaan</button>
             <a class="button button-secondary" href="planning.php?start=<?= e((new DateTimeImmutable((string) $reservation['start_at']))->format('Y-m-d')) ?>">Toon in planning</a>
         </form>
@@ -843,4 +854,5 @@ render_overdue_rentals(overdue_rentals(db(), new DateTimeImmutable(), $id));
 </section>
 <link rel="stylesheet" href="assets/id-camera.css?v=<?= (int)filemtime(__DIR__ . '/assets/id-camera.css') ?>">
 <script src="assets/id-camera.js?v=<?= (int)filemtime(__DIR__ . '/assets/id-camera.js') ?>" defer></script>
+<script src="assets/reservation-status.js?v=<?= (int)filemtime(__DIR__ . '/assets/reservation-status.js') ?>" defer></script>
 <?php render_footer();
