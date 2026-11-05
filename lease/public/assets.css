@@ -563,3 +563,13 @@ input[type="number"] {
     font-size: 13px;
     line-height: 1.5;
 }
+
+.contract-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 18px 0;
+}
+.contract-pagination > span { padding: 8px; }

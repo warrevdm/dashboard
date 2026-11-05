@@ -38,11 +38,12 @@ function find_contract_by_token(string $token): ?array
     }
 
     $stmt = db()->prepare(
-        'SELECT * FROM rental_contracts
-         WHERE public_token_hash = :token_hash
-           AND signed_at IS NULL
-           AND public_token_expires_at IS NOT NULL
-           AND public_token_expires_at > CURRENT_TIMESTAMP
+        'SELECT c.* FROM rental_contracts c JOIN reservations r ON r.id=c.reservation_id
+         WHERE c.public_token_hash = :token_hash
+           AND c.signed_at IS NULL
+           AND c.public_token_expires_at IS NOT NULL
+           AND c.public_token_expires_at > CURRENT_TIMESTAMP
+           AND r.status != \'no_show\'
          LIMIT 1'
     );
     $stmt->execute([':token_hash' => hash('sha256', $token)]);
@@ -56,6 +57,11 @@ function contract_number(int $reservationId): string
 
 function contract_issue_token(int $contractId): string
 {
+    $contract = find_contract_by_id($contractId);
+    $reservation = $contract ? contract_reservation_data((int)$contract['reservation_id']) : null;
+    if ($reservation && $reservation['status'] === 'no_show') {
+        throw new DomainException('Voor een no-show kan geen ondertekenlink worden gemaakt.');
+    }
     $token = bin2hex(random_bytes(32));
     $expiresAt = contract_token_expires_at();
 
@@ -64,7 +70,8 @@ function contract_issue_token(int $contractId): string
          SET public_token_hash = :token_hash,
              public_token_expires_at = :expires_at,
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = :id AND signed_at IS NULL'
+         WHERE id = :id AND signed_at IS NULL
+           AND EXISTS (SELECT 1 FROM reservations r WHERE r.id=rental_contracts.reservation_id AND r.status != \'no_show\')'
     );
     $stmt->execute([
         ':token_hash' => hash('sha256', $token),
@@ -85,6 +92,8 @@ function contract_token_for_staff(array $contract): ?string
     if (!empty($contract['signed_at'])) {
         return null;
     }
+    $reservation = contract_reservation_data((int)$contract['reservation_id']);
+    if ($reservation && $reservation['status'] === 'no_show') return null;
     $contractId = (int) $contract['id'];
     $token = $_SESSION['contract_tokens'][$contractId] ?? null;
     if (is_string($token) && preg_match('/^[a-f0-9]{64}$/', $token)) {
@@ -94,7 +103,8 @@ function contract_token_for_staff(array $contract): ?string
                AND public_token_hash = :token_hash
                AND signed_at IS NULL
                AND public_token_expires_at IS NOT NULL
-               AND public_token_expires_at > CURRENT_TIMESTAMP'
+               AND public_token_expires_at > CURRENT_TIMESTAMP
+               AND EXISTS (SELECT 1 FROM reservations r WHERE r.id=rental_contracts.reservation_id AND r.status != \'no_show\')'
         );
         $stmt->execute([
             ':id' => $contractId,
@@ -110,14 +120,15 @@ function contract_token_for_staff(array $contract): ?string
 function create_contract_for_reservation(int $reservationId): array
 {
     $existing = find_contract_by_reservation($reservationId);
-    if ($existing) {
-        return $existing;
-    }
-
+    if ($existing && !empty($existing['signed_at'])) return $existing;
     $reservation = contract_reservation_data($reservationId);
     if (!$reservation) {
         throw new RuntimeException('Verhuur niet gevonden.');
     }
+    if ($reservation['status'] === 'no_show') {
+        throw new DomainException('Voor een no-show kan geen overeenkomst meer worden aangemaakt of ondertekend.');
+    }
+    if ($existing) return $existing;
     if (empty($reservation['bikes'])) {
         throw new RuntimeException('Er zijn geen fietsen aan deze verhuur gekoppeld.');
     }
@@ -134,10 +145,12 @@ function create_contract_for_reservation(int $reservationId): array
     $stmt = db()->prepare(
         'INSERT INTO rental_contracts
          (reservation_id, contract_number, public_token_hash, public_token_expires_at, contract_html, contract_hash, created_at, updated_at)
-         VALUES (:reservation_id, :contract_number, :token_hash, :token_expires_at, :contract_html, :contract_hash, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)'
+         SELECT :reservation_id, :contract_number, :token_hash, :token_expires_at, :contract_html, :contract_hash, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+         WHERE EXISTS (SELECT 1 FROM reservations r WHERE r.id=:eligible_reservation_id AND r.status != \'no_show\')'
     );
     $stmt->execute([
         ':reservation_id' => $reservationId,
+        ':eligible_reservation_id' => $reservationId,
         ':contract_number' => $number,
         ':token_hash' => hash('sha256', $token),
         ':token_expires_at' => $tokenExpiresAt,
@@ -145,6 +158,7 @@ function create_contract_for_reservation(int $reservationId): array
         ':contract_hash' => $contractHash,
     ]);
 
+    if ($stmt->rowCount() !== 1) throw new RuntimeException('De reservatie kan niet meer worden ondertekend.');
     $contractId = (int) db()->lastInsertId();
     $_SESSION['contract_tokens'][$contractId] = $token;
     audit('create', 'rental_contract', $contractId, ['reservation_id' => $reservationId, 'bike_count' => count($reservation['bikes'])]);
@@ -299,6 +313,10 @@ function sign_contract(array $contract, string $signerName, string $signatureDat
         @unlink($signaturePath);
         throw new RuntimeException('De verhuurgegevens zijn niet meer beschikbaar.');
     }
+    if ($reservation['status'] === 'no_show') {
+        @unlink($signaturePath);
+        throw new DomainException('Deze reservatie is als no-show afgesloten en kan niet meer worden ondertekend.');
+    }
 
     $signature = ['signer_name' => $signerName, 'signed_at' => $signedAt->format('Y-m-d H:i:s'), 'signature_data_uri' => $normalizedDataUri, 'signed_hash' => ''];
     $preHashHtml = render_contract_document($reservation, (string) $contract['contract_number'], $signature);
@@ -313,9 +331,11 @@ function sign_contract(array $contract, string $signerName, string $signatureDat
              signed_at=:signed_at, signer_ip=:signer_ip, signer_user_agent=:signer_user_agent,
              signed_contract_html=:signed_contract_html, signed_hash=:signed_hash,
              public_token_hash=NULL, public_token_expires_at=NULL, updated_at=CURRENT_TIMESTAMP
-             WHERE id=:id AND signed_at IS NULL'
+             WHERE id=:id AND signed_at IS NULL AND contract_hash=:expected_hash
+               AND EXISTS (SELECT 1 FROM reservations r WHERE r.id=rental_contracts.reservation_id AND r.status != \'no_show\')'
         );
         $stmt->execute([
+            ':expected_hash' => $contract['contract_hash'],
             ':signer_name' => $signerName,
             ':signature_stored_name' => $signatureName,
             ':signed_at' => $signedAt->format('Y-m-d H:i:s'),
@@ -325,7 +345,7 @@ function sign_contract(array $contract, string $signerName, string $signatureDat
             ':signed_hash' => $signedHash,
             ':id' => $contractId,
         ]);
-        if ($stmt->rowCount() !== 1) throw new RuntimeException('Dit contract werd intussen al ondertekend.');
+        if ($stmt->rowCount() !== 1) throw new RuntimeException('Dit contract is intussen gewijzigd, ondertekend of afgesloten.');
         db()->commit();
     } catch (Throwable $e) {
         if (db()->inTransaction()) db()->rollBack();

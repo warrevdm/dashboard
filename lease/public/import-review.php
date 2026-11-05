@@ -3,9 +3,8 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 Auth::requirePost();
 
-require_once __DIR__ . '/../vendor/autoload.php';
-
-use PhpOffice\PhpSpreadsheet\IOFactory;
+require_once __DIR__ . '/../app/ImportFile.php';
+require_once __DIR__ . '/../app/ImportValidation.php';
 
 function e($value): string
 {
@@ -14,56 +13,12 @@ function e($value): string
 
 function normalizeDateValue($value): ?string
 {
-    if ($value === null || $value === '') {
-        return null;
-    }
-
-    if (is_numeric($value)) {
-        try {
-            return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value)->format('Y-m-d');
-        } catch (Throwable $e) {
-            return null;
-        }
-    }
-
-    $value = trim((string) $value);
-
-    $formats = [
-        'd/m/Y',
-        'd-m-Y',
-        'Y-m-d',
-        'd/m/y',
-        'd-m-y',
-    ];
-
-    foreach ($formats as $format) {
-        $date = DateTime::createFromFormat($format, $value);
-
-        if ($date instanceof DateTime) {
-            return $date->format('Y-m-d');
-        }
-    }
-
-    return null;
+    return ImportValidation::date($value);
 }
 
 function normalizeMoneyValue($value): ?float
 {
-    if ($value === null || $value === '') {
-        return null;
-    }
-
-    $value = trim((string) $value);
-    $value = str_replace(['€', ' '], '', $value);
-
-    if (str_contains($value, ',') && str_contains($value, '.')) {
-        $value = str_replace('.', '', $value);
-        $value = str_replace(',', '.', $value);
-    } else {
-        $value = str_replace(',', '.', $value);
-    }
-
-    return is_numeric($value) ? (float) $value : null;
+    return ImportValidation::money($value);
 }
 
 function normalizeBikeTypeValue($value): string
@@ -73,6 +28,8 @@ function normalizeBikeTypeValue($value): string
     if ($value === '') {
         return 'onbekend';
     }
+
+    if (in_array($value, ['elektrisch', 'racefiets', 'gravelfiets', 'speedpedelec', 'elektrische gezinsfiets', 'niet elektrisch city bike', 'mountainbike', 'onbekend'], true)) return $value;
 
     if (str_contains($value, 'speed')) {
         return 'speedpedelec';
@@ -128,15 +85,14 @@ if (!file_exists($filePath)) {
 }
 
 try {
-    $spreadsheet = IOFactory::load($filePath);
+    $rows = ImportFile::rows($filePath);
 } catch (Throwable $e) {
     die('Excelbestand kon niet gelezen worden: ' . e($e->getMessage()));
 }
 
-$sheet = $spreadsheet->getActiveSheet();
-$rows = $sheet->toArray();
-
-array_shift($rows);
+$headers = array_shift($rows);
+$validationErrors = ImportValidation::errors($rows, $mapping, count($headers));
+if ($validationErrors) ImportValidation::reject($validationErrors, $filename);
 
 $previewRows = array_slice($rows, 0, 10);
 $totalRows = count($rows);
@@ -164,8 +120,13 @@ foreach ($previewRows as $rowIndex => $row) {
 }
 
 $missingSoNumbers = 0;
+$missingContractDates = 0;
 
 foreach ($rows as $row) {
+    if (trim((string)mappedValue($row, $mapping, 'lease_start_date')) === ''
+        || trim((string)mappedValue($row, $mapping, 'lease_end_date')) === '') {
+        $missingContractDates++;
+    }
     $soNumber = trim((string) mappedValue($row, $mapping, 'so_number'));
 
     if ($soNumber === '') {
@@ -199,12 +160,17 @@ foreach ($rows as $row) {
         <p><strong>Totaal aantal rijen:</strong> <?= e($totalRows) ?></p>
         <p><strong>Rijen zonder SO-number:</strong> <?= e($missingSoNumbers) ?></p>
 
+        <?php if ($missingContractDates > 0): ?>
+            <p class="alert-warning"><?= e($missingContractDates) ?> rij(en) missen een start- of einddatum. Nieuwe contracten worden met onbekende datums toegevoegd; bestaande datums blijven behouden.</p>
+        <?php endif; ?>
+
         <?php if ($missingSoNumbers > 0): ?>
             <p class="alert-warning">
                 Let op: <?= e($missingSoNumbers) ?> rij(en) hebben geen SO-number en zullen worden overgeslagen.
             </p>
         <?php endif; ?>
 
+        <p>Bij bestaande SO-nummers blijven gegevens behouden wanneer de kolom ontbreekt of leeg is. Een onderhoudsbudget van 0 wordt wel bijgewerkt.</p>
         <p>Controleer hieronder de eerste 10 rijen. Als de kolommen fout gekoppeld zijn, ga terug en pas de mapping aan.</p>
     </section>
 

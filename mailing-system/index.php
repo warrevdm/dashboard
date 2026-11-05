@@ -70,6 +70,7 @@ $message = $_GET['message'] ?? '';
                     <div class="quick-messages" role="group" aria-label="Snelle boodschappen">
                         <button type="button" class="quick-message" id="quickIdCard" aria-pressed="false">Identiteitskaart voor leasing</button>
                         <button type="button" class="quick-message" id="quickLeaseABikePin" aria-pressed="false">Lease a Bike pincode meenemen</button>
+                        <button type="button" class="quick-message" id="quickO2OPin" aria-pressed="false">O2O pincode meenemen</button>
                         <button type="button" class="quick-message" id="quickPickupDate" aria-pressed="false">Afhalen vanaf datum</button>
                     </div>
                     <div class="pickup-date-row" id="pickupDateRow" hidden>
@@ -94,6 +95,6 @@ $message = $_GET['message'] ?? '';
     <div id="previewContent" class="preview-content"></div>
 </dialog>
 <script src="assets/duplicate-check.js?v=20260825-1" defer></script>
-<script src="assets/app.js?v=20260825-split" defer></script>
+<script src="assets/app.js?v=20261022-o2o" defer></script>
 </body>
 </html>

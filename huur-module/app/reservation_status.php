@@ -11,18 +11,41 @@ function handle_reservation_status_request(): never
         exit('Methode niet toegestaan.');
     }
 
+    if (!in_array(current_user()['role'] ?? '', ['admin','staff'], true)) { http_response_code(403); exit('Geen toegang.'); }
     verify_csrf();
 
     $id = (int) ($_GET['id'] ?? 0);
     $status = (string) ($_POST['status'] ?? '');
+    $current = find_reservation($id);
+    if ($status === 'no_show' || ($current['status'] ?? '') === 'no_show') {
+        try {
+            change_reservation_no_show($id, $status, (string)($_POST['no_show_reason'] ?? ''), ($_POST['confirm_no_show'] ?? '') === '1');
+            flash('success', $status === 'no_show' ? 'No-show geregistreerd. De fietsen zijn vrijgegeven; prijs en betalingen blijven bewaard.' : 'Reservatie opnieuw geopend na beschikbaarheidscontrole.');
+        } catch (DomainException $error) { flash('error', $error->getMessage()); }
+        catch (Throwable $error) { error_log('Reservatie no-show: ' . $error->getMessage()); flash('error', 'De wijziging kon niet worden opgeslagen. Herlaad het dossier en probeer opnieuw.'); }
+        redirect('reservation.php?id=' . $id);
+    }
     $allowed = ['reserved', 'confirmed', 'picked_up', 'returned', 'cancelled'];
+    db()->beginTransaction();
     $reservation = find_reservation($id);
 
     if (!$reservation || !in_array($status, $allowed, true)) {
+        db()->rollBack();
         flash('error', 'Ongeldige status.');
         redirect('planning.php');
     }
 
+    if ($reservation['status'] === 'no_show') {
+        db()->rollBack();
+        flash('error', 'Dit dossier is intussen als no-show afgesloten. Herlaad het dossier.');
+        redirect('reservation.php?id=' . $id);
+    }
+    $hasReturns = (bool) array_filter($reservation['bikes'], static fn(array $b): bool => !empty($b['returned_at']));
+    if ($hasReturns && $status !== $reservation['status'] && !in_array($status, ['returned','cancelled'], true)) {
+        db()->rollBack();
+        flash('error', 'Een dossier met fietsretours kan niet opnieuw geopend of teruggezet worden. Maak een nieuwe reservatie voor een nieuwe uitgifte.');
+        redirect('reservation.php?id=' . $id);
+    }
     $previousStatus = (string) $reservation['status'];
     $closingStatuses = ['returned', 'cancelled'];
     $isClosing = in_array($status, $closingStatuses, true);
@@ -58,12 +81,18 @@ function handle_reservation_status_request(): never
         ]);
     }
 
-    audit('status_update', 'reservation', $id, [
+    if ($status === 'returned' && $hasReturns) {
+        $stmt = db()->prepare('UPDATE reservation_bikes SET returned_at=COALESCE(returned_at, ?), returned_by=COALESCE(returned_by, ?) WHERE reservation_id=?');
+        $stmt->execute([(new DateTimeImmutable('now', new DateTimeZone('Europe/Brussels')))->format('Y-m-d H:i:s'), $userId, $id]);
+    }
+    audit('status_update' , 'reservation', $id, [
         'from_status' => $previousStatus,
         'to_status' => $status,
         'closed_now' => $isClosing && !$wasClosed,
         'changed_by' => $userId,
     ]);
+
+    db()->commit();
 
     if ($isClosing && !$wasClosed) {
         flash('success', 'Huur afgesloten en voorzien van naam-, datum- en tijdstempel.');

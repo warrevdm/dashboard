@@ -171,6 +171,10 @@ if ($mailType === 'collect_go') {
 }
 
 authRotateCsrf();
+// Persist the rotated token before external mail requests; release other tabs.
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
 
 if ($mode === 'eml') {
     authAudit($mailType === 'collect_go' ? 'collect_go_eml_created' : 'mail_eml_created');

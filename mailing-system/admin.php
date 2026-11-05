@@ -147,7 +147,7 @@ $mailHistory = $pdo->query("SELECT ml.id,ml.customer_name,ml.customer_email,ml.b
                 <input type="hidden" name="action" value="create">
                 <div class="field"><label>Naam</label><input name="name" type="text" maxlength="100" required></div>
                 <div class="field"><label>E-mailadres</label><input name="email" type="email" maxlength="190" required></div>
-                <div class="field"><label>Tijdelijk wachtwoord</label><input name="password" type="password" minlength="14" maxlength="128" required autocomplete="new-password"><small>Minstens 14 tekens. Deel dit apart met de gebruiker.</small></div>
+                <div class="field"><label>Tijdelijk wachtwoord</label><input name="password" type="password" maxlength="128" required autocomplete="new-password"><small>Deel dit apart met de gebruiker.</small></div>
                 <button class="button button-primary auth-submit" type="submit">Gebruiker aanmaken</button>
             </form>
         </article>
@@ -159,8 +159,8 @@ $mailHistory = $pdo->query("SELECT ml.id,ml.customer_name,ml.customer_email,ml.b
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(authCsrfToken(), ENT_QUOTES, 'UTF-8') ?>">
                 <input type="hidden" name="action" value="change_admin_password">
                 <div class="field"><label>Huidig wachtwoord</label><input name="current_password" type="password" required autocomplete="current-password"></div>
-                <div class="field"><label>Nieuw wachtwoord</label><input name="new_password" type="password" minlength="14" maxlength="128" required autocomplete="new-password"></div>
-                <div class="field"><label>Nieuw wachtwoord herhalen</label><input name="new_password_confirm" type="password" minlength="14" maxlength="128" required autocomplete="new-password"></div>
+                <div class="field"><label>Nieuw wachtwoord</label><input name="new_password" type="password" maxlength="128" required autocomplete="new-password"></div>
+                <div class="field"><label>Nieuw wachtwoord herhalen</label><input name="new_password_confirm" type="password" maxlength="128" required autocomplete="new-password"></div>
                 <button class="button button-secondary auth-submit" type="submit">Wachtwoord wijzigen</button>
             </form>
         </article>
@@ -186,7 +186,7 @@ $mailHistory = $pdo->query("SELECT ml.id,ml.customer_name,ml.customer_email,ml.b
                             <?php if ($user['role'] !== 'admin'): ?>
                                 <div class="user-actions">
                                     <form method="post"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(authCsrfToken(), ENT_QUOTES, 'UTF-8') ?>"><input type="hidden" name="action" value="toggle"><input type="hidden" name="user_id" value="<?= (int) $user['id'] ?>"><button class="button button-secondary" type="submit"><?= (int) $user['active'] === 1 ? 'Blokkeren' : 'Activeren' ?></button></form>
-                                    <form method="post" class="reset-form"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(authCsrfToken(), ENT_QUOTES, 'UTF-8') ?>"><input type="hidden" name="action" value="reset_password"><input type="hidden" name="user_id" value="<?= (int) $user['id'] ?>"><input name="new_password" type="password" minlength="14" maxlength="128" placeholder="Nieuw wachtwoord" required><button class="button button-secondary" type="submit">Reset</button></form>
+                                    <form method="post" class="reset-form"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(authCsrfToken(), ENT_QUOTES, 'UTF-8') ?>"><input type="hidden" name="action" value="reset_password"><input type="hidden" name="user_id" value="<?= (int) $user['id'] ?>"><input name="new_password" type="password" maxlength="128" placeholder="Nieuw wachtwoord" required><button class="button button-secondary" type="submit">Reset</button></form>
                                 </div>
                             <?php else: ?>—<?php endif; ?>
                         </td>

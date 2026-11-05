@@ -58,12 +58,13 @@ CREATE TABLE IF NOT EXISTS reservations (
     identity_document_id INTEGER,
     start_at TEXT NOT NULL,
     end_at TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'reserved' CHECK(status IN ('reserved', 'confirmed', 'picked_up', 'returned', 'cancelled')),
-    rental_kind TEXT NOT NULL DEFAULT 'rental' CHECK(rental_kind IN ('rental', 'replacement')),
+    status TEXT NOT NULL DEFAULT 'reserved' CHECK(status IN ('reserved', 'confirmed', 'picked_up', 'returned', 'cancelled', 'no_show')),
+    rental_kind TEXT NOT NULL DEFAULT 'rental' CHECK(rental_kind IN ('rental', 'test', 'replacement')),
     total_price REAL NOT NULL DEFAULT 0,
     replacement_cost_note TEXT,
     notes TEXT,
     cancelled_reason TEXT,
+    no_show_reason TEXT,
     cancelled_by INTEGER,
     cancelled_at TEXT,
     created_by INTEGER,
@@ -88,6 +89,8 @@ CREATE TABLE IF NOT EXISTS reservation_bikes (
     reservation_id INTEGER NOT NULL,
     bike_id INTEGER NOT NULL,
     daily_rate REAL NOT NULL DEFAULT 0,
+    returned_at TEXT,
+    returned_by INTEGER,
     PRIMARY KEY (reservation_id, bike_id),
     FOREIGN KEY (reservation_id) REFERENCES reservations(id) ON DELETE CASCADE,
     FOREIGN KEY (bike_id) REFERENCES bikes(id)
@@ -135,6 +138,15 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     bucket_type TEXT NOT NULL CHECK(bucket_type IN ('ip', 'account')),
     bucket_key TEXT NOT NULL,
     attempted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS reservation_booking_mail_runs (
+    reservation_id INTEGER PRIMARY KEY REFERENCES reservations(id),
+    recipient TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('sending','sent','logged','failed','uncertain')),
+    created_by INTEGER NOT NULL REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS audit_logs (

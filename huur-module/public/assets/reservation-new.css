@@ -129,7 +129,7 @@
 .rental-bike-option {
     position: relative;
     display: grid;
-    grid-template-rows: 145px 1fr;
+    grid-template-rows: 220px 1fr;
     padding: 0;
     overflow: hidden;
     border: 2px solid #d8e0d9;
@@ -169,13 +169,15 @@
     display: grid;
     place-items: center;
     overflow: hidden;
-    background: #e7ece7;
+    padding: 8px;
+    background: #f3f6f3;
 }
 
 .rental-bike-image img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    object-position: center;
     display: block;
 }
 
@@ -331,7 +333,8 @@
 .rental-summary-bike-thumb img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    object-position: center;
 }
 
 .rental-summary-bike strong,
@@ -437,6 +440,9 @@
     .rental-period-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+    .rental-bike-option {
+        grid-template-rows: 200px 1fr;
+    }
 }
 
 @media (max-width: 640px) {
@@ -458,11 +464,26 @@
         grid-template-columns: 1fr;
     }
     .rental-bike-option {
-        grid-template-columns: 120px 1fr;
+        grid-template-columns: 150px 1fr;
         grid-template-rows: auto;
-        min-height: 118px;
+        min-height: 140px;
     }
     .rental-bike-image {
-        min-height: 118px;
+        min-height: 140px;
     }
 }
+
+/* Keep the bike picker compact until the employee opens step 2. */
+.rental-bike-disclosure > summary { cursor: pointer; list-style: none; align-items: center; }
+.rental-bike-disclosure > summary::-webkit-details-marker { display: none; }
+.rental-bike-disclosure:not([open]) > summary { margin-bottom: 0; }
+.rental-bike-disclosure > summary:focus-visible { outline: 3px solid #60bb46; outline-offset: 6px; border-radius: 8px; }
+.rental-disclosure-toggle { flex: 0 0 auto; color: #245f21; font-weight: 700; }
+.rental-disclosure-toggle::before { content: 'Uitklappen +'; }
+.rental-bike-disclosure[open] .rental-disclosure-toggle::before { content: 'Inklappen −'; }
+@media (max-width: 700px) { .rental-bike-disclosure > summary { flex-wrap: wrap; } }
+
+.rental-category-filter { display: grid; gap: 5px; min-width: 170px; font-weight: 700; }
+.rental-category-filter select { width: 100%; min-height: 44px; }
+.rental-bike-toolbar { flex-wrap: wrap; align-items: end; }
+@media (max-width: 700px) { .rental-category-filter { width: 100%; } }

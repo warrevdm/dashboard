@@ -25,6 +25,7 @@ $createdAt = new DateTimeImmutable((string) $reservation['created_at']);
 $createdBy = trim((string) ($reservation['created_by_name'] ?? ''));
 $createdEmail = trim((string) ($reservation['created_by_email'] ?? ''));
 $closedAt = !empty($reservation['closed_at']) ? new DateTimeImmutable((string) $reservation['closed_at']) : null;
+if ($closedAt && $reservation['status'] === 'no_show') $closedAt = (new DateTimeImmutable($reservation['closed_at'], new DateTimeZone('UTC')))->setTimezone(new DateTimeZone('Europe/Brussels'));
 $closedBy = trim((string) ($reservation['closed_by_name'] ?? ''));
 $closedEmail = trim((string) ($reservation['closed_by_email'] ?? ''));
 ?>
@@ -46,7 +47,7 @@ $closedEmail = trim((string) ($reservation['closed_by_email'] ?? ''));
                 <span class="badge status-<?= e((string) $reservation['status']) ?>"><?= e(status_label((string) $reservation['status'])) ?></span>
             <?php else: ?>
                 <strong>Nog niet afgesloten</strong>
-                <span>De naam-, datum- en tijdstempel wordt geplaatst bij Teruggebracht of Geannuleerd.</span>
+                <span>De naam-, datum- en tijdstempel wordt geplaatst bij Teruggebracht, Geannuleerd of Niet opgedaagd.</span>
             <?php endif; ?>
         </div>
     </div>

@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../app/Database.php';
+require_once __DIR__ . '/../app/ExpiringContracts.php';
 
 $pdo = Database::connect();
 
@@ -15,14 +16,25 @@ function dateStatusDays(?string $dateValue): ?int
         return null;
     }
 
-    $today = new DateTime('today');
-    $date = DateTime::createFromFormat('Y-m-d', $dateValue);
+    $zone = new DateTimeZone('Europe/Brussels');
+    $today = new DateTimeImmutable('today', $zone);
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $dateValue, $zone);
 
-    if (!$date) {
+    if (!$date || $date->format('Y-m-d') !== $dateValue) {
         return null;
     }
 
     return (int) $today->diff($date)->format('%r%a');
+}
+
+function threeMonthWindowDays(): int
+{
+    static $days = null;
+    if ($days === null) {
+        [$start, $end] = ExpiringContracts::window(new DateTimeImmutable('now', new DateTimeZone('Europe/Brussels')));
+        $days = (int) $start->diff($end)->days;
+    }
+    return $days;
 }
 
 function contractStatusIcon(array $order): array
@@ -82,7 +94,7 @@ function contractStatusIcon(array $order): array
         ];
     }
 
-    if ($days <= 90) {
+    if ($days <= threeMonthWindowDays()) {
         return [
             'icon' => '🟠',
             'class' => 'icon-status-warning',
@@ -119,7 +131,7 @@ function maintenanceStatusIcon(array $order): ?array
         ];
     }
 
-    if ($days <= 90) {
+    if ($days <= threeMonthWindowDays()) {
         return [
             'icon' => '🔧',
             'class' => 'icon-status-warning',
@@ -130,11 +142,24 @@ function maintenanceStatusIcon(array $order): ?array
     return null;
 }
 
-$search = trim($_GET['search'] ?? '');
-$leasePartner = trim($_GET['lease_partner'] ?? '');
-$bikeType = trim($_GET['bike_type'] ?? '');
-$contractStatus = trim($_GET['contract_status'] ?? '');
-$sort = trim($_GET['sort'] ?? 'newest_start');
+function queryText(string $key, string $default = ''): string
+{
+    $value = $_GET[$key] ?? $default;
+    return is_scalar($value) ? trim((string) $value) : $default;
+}
+
+$search = queryText('search');
+$leasePartner = queryText('lease_partner');
+$bikeType = queryText('bike_type');
+$contractStatus = queryText('contract_status');
+if (!in_array($contractStatus, ['', 'active', 'expiring_soon', 'expired', 'no_end_date'], true)) $contractStatus = '';
+$sort = queryText('sort', 'newest_start');
+$perPage = (int) queryText('per_page', '50');
+if (!in_array($perPage, [50, 100, 200], true)) $perPage = 50;
+$page = max(1, (int) queryText('page', '1'));
+[$windowStart, $windowEnd] = ExpiringContracts::window(new DateTimeImmutable('now', new DateTimeZone('Europe/Brussels')));
+$todayValue = $windowStart->format('Y-m-d');
+$windowEndValue = $windowEnd->format('Y-m-d');
 
 $sortOptions = [
     'newest_start' => [
@@ -179,7 +204,7 @@ if (!isset($sortOptions[$sort])) {
     $sort = 'newest_start';
 }
 
-$orderBySql = $sortOptions[$sort]['sql'];
+$orderBySql = $sortOptions[$sort]['sql'] . ', id ASC';
 
 $where = [];
 $params = [];
@@ -216,16 +241,19 @@ if ($bikeType !== '') {
     $params[':bike_type'] = $bikeType;
 }
 
+if (in_array($contractStatus, ['active', 'expiring_soon', 'expired'], true)) $params[':filter_today'] = $todayValue;
+if ($contractStatus === 'expiring_soon') $params[':filter_end'] = $windowEndValue;
+
 if ($contractStatus === 'active') {
-    $where[] = "lease_end_date IS NOT NULL AND lease_end_date >= CURDATE()";
+    $where[] = "lease_end_date IS NOT NULL AND lease_end_date >= :filter_today";
 }
 
 if ($contractStatus === 'expiring_soon') {
-    $where[] = "lease_end_date IS NOT NULL AND lease_end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 MONTH)";
+    $where[] = "lease_end_date IS NOT NULL AND lease_end_date BETWEEN :filter_today AND :filter_end";
 }
 
 if ($contractStatus === 'expired') {
-    $where[] = "lease_end_date IS NOT NULL AND lease_end_date < CURDATE()";
+    $where[] = "lease_end_date IS NOT NULL AND lease_end_date < :filter_today";
 }
 
 if ($contractStatus === 'no_end_date') {
@@ -240,21 +268,28 @@ if (!empty($where)) {
     $whereSql = 'WHERE ' . implode(' AND ', $where);
 }
 
-$sql = "
-    SELECT *
-    FROM lease_orders
-    $whereSql
-    ORDER BY $orderBySql
-";
+$countStmt = $pdo->prepare("SELECT COUNT(*) FROM lease_orders $whereSql");
+$countStmt->execute($params);
+$totalResults = (int) $countStmt->fetchColumn();
+$pageCount = max(1, (int) ceil($totalResults / $perPage));
+$page = min($page, $pageCount);
+$offset = ($page - 1) * $perPage;
 
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
+$stmt = $pdo->prepare("SELECT * FROM lease_orders $whereSql ORDER BY $orderBySql LIMIT :result_limit OFFSET :result_offset");
+foreach ($params as $key => $value) $stmt->bindValue($key, $value, PDO::PARAM_STR);
+$stmt->bindValue(':result_limit', $perPage, PDO::PARAM_INT);
+$stmt->bindValue(':result_offset', $offset, PDO::PARAM_INT);
+$stmt->execute();
 $orders = $stmt->fetchAll();
+
+$filterQuery = array_filter(['search'=>$search, 'lease_partner'=>$leasePartner, 'bike_type'=>$bikeType,
+    'contract_status'=>$contractStatus, 'sort'=>$sort, 'per_page'=>$perPage], static fn($value): bool => $value !== '');
+$pageUrl = static fn(int $number): string => 'index.php?' . http_build_query($filterQuery + ['page'=>$number]);
 
 $leasePartnersStmt = $pdo->query("
     SELECT DISTINCT lease_partner
     FROM lease_orders
-    WHERE lease_partner IS NOT NULL
+    WHERE archived = 0 AND lease_partner IS NOT NULL
       AND lease_partner != ''
     ORDER BY lease_partner ASC
 ");
@@ -264,35 +299,23 @@ $leasePartners = $leasePartnersStmt->fetchAll();
 $bikeTypesStmt = $pdo->query("
     SELECT DISTINCT bike_type
     FROM lease_orders
-    WHERE bike_type IS NOT NULL
+    WHERE archived = 0 AND bike_type IS NOT NULL
       AND bike_type != ''
     ORDER BY bike_type ASC
 ");
 
 $bikeTypes = $bikeTypesStmt->fetchAll();
 
-$totalResults = count($orders);
-$totalContracts = (int) $pdo->query("
-    SELECT COUNT(*)
-    FROM lease_orders
-    WHERE archived = 0
-")->fetchColumn();
-
-$expiringContracts = (int) $pdo->query("
-    SELECT COUNT(*)
-    FROM lease_orders
-    WHERE archived = 0
-      AND lease_end_date IS NOT NULL
-      AND lease_end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 MONTH)
-")->fetchColumn();
-
-$expiringMaintenance = (int) $pdo->query("
-    SELECT COUNT(*)
-    FROM lease_orders
-    WHERE archived = 0
-      AND yearly_maintenance_end_date IS NOT NULL
-      AND yearly_maintenance_end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 MONTH)
-")->fetchColumn();
+$statsStmt = $pdo->prepare("SELECT COUNT(*) AS total_contracts,
+    SUM(CASE WHEN lease_end_date BETWEEN :contract_from AND :contract_to THEN 1 ELSE 0 END) AS expiring_contracts,
+    SUM(CASE WHEN yearly_maintenance_end_date BETWEEN :maintenance_from AND :maintenance_to THEN 1 ELSE 0 END) AS expiring_maintenance
+    FROM lease_orders WHERE archived = 0");
+$statsStmt->execute([':contract_from'=>$todayValue, ':contract_to'=>$windowEndValue,
+    ':maintenance_from'=>$todayValue, ':maintenance_to'=>$windowEndValue]);
+$stats = $statsStmt->fetch();
+$totalContracts = (int) $stats['total_contracts'];
+$expiringContracts = (int) $stats['expiring_contracts'];
+$expiringMaintenance = (int) $stats['expiring_maintenance'];
 
 $lastImportDate = $pdo->query("
     SELECT MAX(created_at)
@@ -415,6 +438,12 @@ $lastImportDate = $pdo->query("
                         <?php endforeach; ?>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label for="per_page">Contracten per pagina</label>
+                    <select name="per_page" id="per_page">
+                        <?php foreach ([50, 100, 200] as $size): ?><option value="<?= $size ?>" <?= $perPage === $size ? 'selected' : '' ?>><?= $size ?></option><?php endforeach; ?>
+                    </select>
+                </div>
             </div>
 
             <div class="filter-actions">
@@ -422,7 +451,7 @@ $lastImportDate = $pdo->query("
                 <a href="index.php" class="button-secondary">Filters wissen</a>
 
                 <a
-                    href="export-contracts.php?<?= e(http_build_query($_GET)) ?>"
+                    href="export-contracts.php?<?= e(http_build_query($filterQuery)) ?>"
                     class="button-secondary"
                 >
                     Export CSV
@@ -433,8 +462,17 @@ $lastImportDate = $pdo->query("
 
     <section class="card result-card">
         <strong><?= e($totalResults) ?></strong> resultaat/resultaten gevonden.
+        <?php if ($totalResults > 0): ?><span> Getoond: <?= $offset + 1 ?>–<?= min($offset + $perPage, $totalResults) ?>.</span><?php endif; ?>
         <span> Gesorteerd op: <strong><?= e($sortOptions[$sort]['label']) ?></strong>.</span>
     </section>
+
+    <?php if ($pageCount > 1): ?>
+        <nav class="contract-pagination" aria-label="Pagina's leasingcontracten">
+            <?php if ($page > 1): ?><a class="button-secondary" href="<?= e($pageUrl(1)) ?>">Eerste</a><a class="button-secondary" rel="prev" href="<?= e($pageUrl($page - 1)) ?>">← Vorige</a><?php endif; ?>
+            <span>Pagina <?= $page ?> van <?= $pageCount ?></span>
+            <?php if ($page < $pageCount): ?><a class="button-secondary" rel="next" href="<?= e($pageUrl($page + 1)) ?>">Volgende →</a><a class="button-secondary" href="<?= e($pageUrl($pageCount)) ?>">Laatste</a><?php endif; ?>
+        </nav>
+    <?php endif; ?>
 
     <section class="table-scroll-block">
         <div class="table-scroll-top" aria-hidden="true">
@@ -528,6 +566,14 @@ $lastImportDate = $pdo->query("
             </table>
         </div>
     </section>
+    <?php if ($pageCount > 1): ?>
+        <nav class="contract-pagination" aria-label="Pagina's leasingcontracten">
+            <?php if ($page > 1): ?><a class="button-secondary" href="<?= e($pageUrl(1)) ?>">Eerste</a><a class="button-secondary" rel="prev" href="<?= e($pageUrl($page - 1)) ?>">← Vorige</a><?php endif; ?>
+            <span>Pagina <?= $page ?> van <?= $pageCount ?></span>
+            <?php if ($page < $pageCount): ?><a class="button-secondary" rel="next" href="<?= e($pageUrl($page + 1)) ?>">Volgende →</a><a class="button-secondary" href="<?= e($pageUrl($pageCount)) ?>">Laatste</a><?php endif; ?>
+        </nav>
+    <?php endif; ?>
+
 </main>
 
 <script>
