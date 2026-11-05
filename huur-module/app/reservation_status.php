@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 function handle_reservation_status_request(): never
 {
-    refresh_current_user_access();
     require_auth();
 
     if ((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {

@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-// Identify this dispatcher even when the hosting exposes it under an alias.
-define('AAB_RENTAL_FRONT_CONTROLLER', true);
 require_once __DIR__ . '/../app/bootstrap.php';
 
 $route = (string) ($_GET['route'] ?? 'planning');
@@ -326,7 +324,18 @@ if ($route === 'reservation-view') {
 }
 
 if ($route === 'reservation-status' && $method === 'POST') {
-    handle_reservation_status_request();
+    verify_csrf();
+    $id = (int) ($_GET['id'] ?? 0);
+    $status = (string) ($_POST['status'] ?? '');
+    if (!find_reservation($id) || !in_array($status, ['reserved', 'confirmed', 'picked_up', 'returned', 'cancelled'], true)) {
+        flash('error', 'Ongeldige status.');
+        redirect('index.php?route=planning');
+    }
+    $stmt = db()->prepare('UPDATE reservations SET status = :status, updated_at = CURRENT_TIMESTAMP WHERE id = :id');
+    $stmt->execute([':status' => $status, ':id' => $id]);
+    audit('status_update', 'reservation', $id, ['status' => $status]);
+    flash('success', 'Status aangepast.');
+    redirect('index.php?route=reservation-view&id=' . $id);
 }
 
 if ($route === 'id-download') {

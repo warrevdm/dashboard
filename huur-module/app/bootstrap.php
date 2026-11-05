@@ -87,15 +87,6 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
-// Refresh before the finance route gate: an existing staff session may still
-// contain an older finance role. Diagnostics keep their database-free path.
-$accessScript = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
-if ($accessScript === 'reservation.php'
-    || (($accessScript === 'index.php' || defined('AAB_RENTAL_FRONT_CONTROLLER'))
-        && ($_GET['route'] ?? '') === 'reservation-status')) {
-    refresh_current_user_access();
-}
-
 if (PHP_SAPI !== 'cli' && current_user() && is_finance()) {
     $scriptName = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
     $allowedFinanceScripts = ['index.php', 'cashbook.php', 'reservation.php', 'bike-photo.php', 'reservation-new.php', 'api-bike-availability.php', 'planning.php', 'booking-mail.php'];
