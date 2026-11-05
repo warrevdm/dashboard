@@ -140,6 +140,15 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     attempted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS reservation_booking_mail_runs (
+    reservation_id INTEGER PRIMARY KEY REFERENCES reservations(id),
+    recipient TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('sending','sent','logged','failed','uncertain')),
+    created_by INTEGER NOT NULL REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS audit_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,

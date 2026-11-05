@@ -1,0 +1,40 @@
+.booking-mail-saved { max-width: 760px; margin: 0 auto; padding: 28px; }
+.booking-mail-saved h2 { margin: 8px 0; }
+.booking-mail-kicker { display: inline-flex; color: #275f25; background: #e8f5e4; border-radius: 999px; padding: 5px 10px; font-size: .76rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.booking-mail-dialog { position: relative; width: min(660px, calc(100% - 32px)); max-height: calc(100dvh - 32px); margin: 24px auto; padding: 0; border: 1px solid #d7e1d6; border-radius: 20px; background: #fff; color: #17251b; box-shadow: 0 24px 80px rgba(13, 32, 18, .2); overflow-y: auto; }
+.booking-mail-dialog[open] { display: block; }
+.booking-mail-dialog:modal { position: fixed; margin: auto; }
+.booking-mail-dialog::backdrop { background: rgba(14, 29, 18, .62); backdrop-filter: blur(3px); }
+.booking-mail-dialog-inner { padding: 28px; }
+.booking-mail-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; padding-right: 46px; }
+.booking-mail-heading h2 { margin: 10px 0 6px; font-size: clamp(1.5rem, 4vw, 1.9rem); line-height: 1.15; }
+.booking-mail-close { position: absolute; top: 28px; right: 28px; display: grid; place-items: center; width: 42px; height: 42px; min-height: 42px; padding: 0; border: 1px solid #dce4dc; border-radius: 50%; background: #f3f7f1; color: #28422d; font: inherit; font-size: 1.7rem; cursor: pointer; }
+.booking-mail-dialog p { line-height: 1.5; }
+.booking-mail-details { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 22px 0 16px; padding: 0; border: 1px solid #dce6db; border-radius: 12px; overflow: hidden; }
+.booking-mail-details > div { min-width: 0; padding: 15px 18px; border-bottom: 1px solid #dce6db; background: #f7faf5; }
+.booking-mail-details > div:nth-child(odd) { border-right: 1px solid #dce6db; }
+.booking-mail-details dt { color: #647361; font-size: .8rem; font-weight: 700; }
+.booking-mail-details dd { margin: 5px 0 0; font-weight: 700; overflow-wrap: anywhere; }
+.booking-mail-details dd span { display: block; margin-top: 3px; font-size: .88rem; font-weight: 400; }
+.booking-mail-details dd strong { display: block; margin-top: 3px; font-size: 1.25rem; }
+.booking-mail-details .booking-mail-bike-detail { grid-column: 1 / -1; border: 0; background: #fff; }
+.booking-mail-details ul { max-height: 140px; overflow-y: auto; list-style: none; padding: 0; margin: 0; }
+.booking-mail-details li + li { margin-top: 5px; }
+.booking-mail-agenda-note { color: #647361; font-size: .84rem; }
+.booking-mail-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.booking-mail-actions .button { flex: 1 1 230px; min-height: 48px; justify-content: center; text-align: center; }
+.booking-mail-submit-status { flex-basis: 100%; margin: 0; font-size: .86rem; color: #42613f; }
+.booking-mail-dialog button:disabled { opacity: .55; cursor: not-allowed; }
+.booking-mail-dialog button:focus-visible { outline: 3px solid #397c2a; outline-offset: 4px; }
+
+@media (max-width: 520px) {
+  .booking-mail-dialog { width: calc(100% - 20px); max-height: calc(100dvh - 20px); border-radius: 16px; }
+  .booking-mail-dialog-inner { padding: 21px 18px; }
+  .booking-mail-heading { gap: 8px; }
+  .booking-mail-close { top: 21px; right: 18px; }
+  .booking-mail-details { grid-template-columns: 1fr; }
+  .booking-mail-details > div:nth-child(odd) { border-right: 0; }
+  .booking-mail-details > div { padding: 12px 14px; }
+  .booking-mail-actions { flex-direction: column; }
+  .booking-mail-actions .button { flex-basis: auto; width: 100%; }
+}

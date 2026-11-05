@@ -38,6 +38,15 @@ Tetris, inclusief het vrijspelen van rijen.
 Test met een tijdelijke PHP/Wasm-database: rechten, zoeken, statusfilters, CSRF,
 gewijzigde contractinhoud, ondertekening en behoud van het ondertekende document.
 
+### Optionele afspraakmail
+
+`node --experimental-wasm-jspi huur-module/tests/booking-mail.cjs` controleert de
+keuze na Huur/Test vanuit beide aanmaakroutes, overslaan zonder mail, CSRF en
+sessiekeuzes, actuele rechten, Boekhouding, gewijzigde dossiers, dubbele POSTs en
+onbevestigde verzending. De agenda- en MIME-controles gebruiken winter-/zomertijd,
+de zomertijdovergang, UTF-8-regelafbreking en veilige tekst. Alleen fictieve data,
+een privé logtransport en gesimuleerde verzenders; geen echte mails.
+
 ### Identiteitsdocument achteraf
 `node --experimental-wasm-jspi huur-module/tests/identity-document.cjs` test echte multipartuploads met fictieve gegevens: toegang, CSRF, MIME, bewaardatum, beveiligde opslag en bescherming van bestaande documenten.
 

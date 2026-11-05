@@ -27,11 +27,14 @@ function render_header(string $title, bool $showNav = true, string $assetProfile
         <link rel="icon" href="assets/aerts-action-bike-logo.svg" type="image/svg+xml">
         <link rel="stylesheet" href="assets/styles.css?v=<?= e($stylesVersion) ?>">
         <link rel="stylesheet" href="assets/planning-status.css?v=<?= e($planningStatusVersion) ?>">
-        <?php if ($assetProfile !== 'planning'): ?>
+        <?php if (!in_array($assetProfile, ['planning', 'booking-mail'], true)): ?>
         <link rel="stylesheet" href="assets/contract.css?v=<?= e($contractVersion) ?>">
         <?php endif; ?>
         <link rel="stylesheet" href="assets/branding.css?v=<?= e($brandingVersion) ?>">
-        <?php if ($assetProfile !== 'planning'): ?>
+        <?php if ($assetProfile === 'booking-mail'): ?>
+        <link rel="stylesheet" href="assets/booking-mail.css?v=<?= e((string) @filemtime(ROOT_PATH . '/public/assets/booking-mail.css')) ?>">
+        <?php endif; ?>
+        <?php if (!in_array($assetProfile, ['planning', 'booking-mail'], true)): ?>
         <link rel="stylesheet" href="assets/eid-bridge.css?v=<?= e($eidBridgeStyleVersion) ?>">
         <link rel="stylesheet" href="assets/reservation-new.css?v=<?= e($reservationNewStyleVersion) ?>">
         <link rel="stylesheet" href="assets/quick-replacement.css?v=<?= e($quickReplacementStyleVersion) ?>">
@@ -96,7 +99,10 @@ function render_footer(string $assetProfile = 'default'): void
     $planningHoverVersion = is_file(ROOT_PATH . '/public/assets/planning-hover.js') ? (string) filemtime(ROOT_PATH . '/public/assets/planning-hover.js') : '1';
     ?>
     </main>
-    <?php if ($assetProfile !== 'planning'): ?>
+    <?php if ($assetProfile === 'booking-mail'): ?>
+    <script src="assets/booking-mail.js?v=<?= e((string) @filemtime(ROOT_PATH . '/public/assets/booking-mail.js')) ?>" defer></script>
+    <?php endif; ?>
+    <?php if (!in_array($assetProfile, ['planning', 'booking-mail'], true)): ?>
     <script src="assets/app.js?v=<?= e($appVersion) ?>" defer></script>
     <script src="assets/eid-bridge.js?v=<?= e($eidBridgeVersion) ?>" defer></script>
     <script src="assets/bike-optimize.js?v=<?= e($bikeOptimizeVersion) ?>" defer></script>

@@ -148,7 +148,8 @@ let php;
     const saved=await state(); const reservation=saved.reservations[0];
     check(saved.reservations.length===1 && reservation.created_by===2 && reservation.rental_kind===kind && saved.reservation_bikes.length===2, 'Finance creates '+kind+' with two reserved bikes');
     check(saved.payment_logs.length===1 && saved.payment_logs[0].recorded_by===2, 'Finance initial payment is recorded');
-    check(response.headers.location?.[0]===`reservation.php?id=${reservation.id}`, 'Finance continues to permitted dossier');
+    const next = kind === 'replacement' ? `reservation.php?id=${reservation.id}` : `booking-mail.php?id=${reservation.id}`;
+    check(response.headers.location?.[0]===next, 'Finance continues to optional mail choice or permitted dossier');
     const dossier=await request('reservation.php',{jar:finance.jar,query:{id:reservation.id}});
     check(dossier.httpStatusCode===200 && dossier.text.includes('data-finance-readonly="1"'), 'Finance can read created dossier');
     const forbidden=await request('reservation.php',{jar:finance.jar,method:'POST',data:{id:reservation.id,_token:finance.token,action:'update-details'}});
@@ -168,8 +169,8 @@ let php;
       check(saved.reservation_bikes.length === 2 && saved.reservation_bikes.map(row => Number(row.bike_id)).join(',') === '1,2', `Full ${kind}/${mode}: both selected bikes are reserved irrespective of bike usage category`);
       check(saved.payment_logs.length === 1 && Number(saved.payment_logs[0].amount) === 20 && saved.payment_logs[0].method === 'cash', `Full ${kind}/${mode}: initial payment is preserved`);
       check(saved.audit_logs.length === 1 && saved.audit_logs[0].entity_type === 'reservation' && JSON.parse(saved.audit_logs[0].details_json).rental_kind === kind, `Full ${kind}/${mode}: audit records the actual selected type`);
-      const expected = kind === 'rental' ? `contract.php?reservation_id=${reservation.id}` : `reservation.php?id=${reservation.id}`;
-      check(response.httpStatusCode === 302 && response.headers.location?.[0] === expected, `Full ${kind}/${mode}: continues to the appropriate contract or dossier page`);
+      const expected = kind === 'replacement' ? `reservation.php?id=${reservation.id}` : `booking-mail.php?id=${reservation.id}`;
+      check(response.httpStatusCode === 302 && response.headers.location?.[0] === expected, `Full ${kind}/${mode}: offers mail for Huur/Test and continues replacement directly to dossier`);
     }
   }
   for (const kind of ['rental', 'test', 'replacement']) {
@@ -183,8 +184,8 @@ let php;
     check(Number(reservation.total_price) === 0 && saved.payment_logs.length === 0, `Quick ${kind}: keeps the existing zero-price workflow without adding a payment`);
     check(saved.reservation_bikes.length === 1 && Number(saved.reservation_bikes[0].bike_id) === 1 && Number(saved.reservation_bikes[0].daily_rate) === 0, `Quick ${kind}: reserves the selected bike with its existing quick-booking rate`);
     check(saved.audit_logs.length === 1 && saved.audit_logs[0].entity_type === 'quick_replacement' && JSON.parse(saved.audit_logs[0].details_json).rental_kind === kind, `Quick ${kind}: audit records selected type`);
-    const expected = kind === 'replacement' ? 'planning.php' : `reservation.php?id=${reservation.id}`;
-    check(response.httpStatusCode === 302 && response.headers.location?.[0] === expected, `Quick ${kind}: continues to planning or dossier as appropriate`);
+    const expected = kind === 'replacement' ? 'planning.php' : `booking-mail.php?id=${reservation.id}`;
+    check(response.httpStatusCode === 302 && response.headers.location?.[0] === expected, `Quick ${kind}: continues to planning or optional mail choice as appropriate`);
   }
 
   for (const kind of ['rental', 'test', 'replacement']) {

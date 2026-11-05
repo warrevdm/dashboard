@@ -89,7 +89,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 
 if (PHP_SAPI !== 'cli' && current_user() && is_finance()) {
     $scriptName = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
-    $allowedFinanceScripts = ['index.php', 'cashbook.php', 'reservation.php', 'bike-photo.php', 'reservation-new.php', 'api-bike-availability.php', 'planning.php'];
+    $allowedFinanceScripts = ['index.php', 'cashbook.php', 'reservation.php', 'bike-photo.php', 'reservation-new.php', 'api-bike-availability.php', 'planning.php', 'booking-mail.php'];
 
     if (!in_array($scriptName, $allowedFinanceScripts, true)) {
         redirect('cashbook.php');

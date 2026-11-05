@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../app/bootstrap.php';
 require_quick_replacement();
+require_once __DIR__ . '/../app/booking_mail.php';
 
 $method = (string) ($_SERVER['REQUEST_METHOD'] ?? 'GET');
 $rentalKindInput = $_POST['rental_kind'] ?? 'replacement';
@@ -131,7 +132,15 @@ if ($method === 'POST') {
 
         db()->commit();
         flash('success', $bike['code'] . ' — ' . $bike['name'] . ' is als ' . strtolower(rental_kind_label($rentalKind)) . ' ingepland voor ' . $name . ' van ' . $startAtObject->format('d/m/Y') . ' tot ' . $returnAt->format('d/m/Y') . '.');
-        redirect($rentalKind === 'replacement' ? 'planning.php' : 'reservation.php?id=' . $reservationId);
+        $continueUrl = $rentalKind === 'replacement' ? 'planning.php' : 'reservation.php?id=' . $reservationId;
+        try {
+            $nextUrl = booking_mail_start_prompt($reservationId, $continueUrl);
+        } catch (Throwable $promptError) {
+            error_log('Mailkeuze kon niet worden geopend voor opgeslagen dossier #' . $reservationId . '.');
+            flash('warning', 'De boeking is opgeslagen, maar de mailkeuze kon niet worden geopend. Er is geen afspraakmail verstuurd.');
+            $nextUrl = $continueUrl;
+        }
+        redirect($nextUrl);
     } catch (Throwable $e) {
         if (db()->inTransaction()) {
             db()->rollBack();
