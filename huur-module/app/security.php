@@ -29,6 +29,24 @@ function current_user(): ?array
     return $_SESSION['user'] ?? null;
 }
 
+/** Keep dossier permissions current without replacing the session or CSRF token. */
+function refresh_current_user_access(): void
+{
+    static $refreshed = false;
+    $sessionUser = current_user();
+    if ($refreshed || $sessionUser === null) return;
+    $user = find_user((int) ($sessionUser['id'] ?? 0));
+    $refreshed = true;
+    if (!$user || !(int) $user['active'] || !in_array($user['role'], ['admin', 'staff', 'finance'], true)) {
+        unset($_SESSION['user']);
+        return;
+    }
+    $_SESSION['user'] = [
+        'id' => (int) $user['id'], 'name' => $user['name'],
+        'email' => $user['email'], 'role' => $user['role'],
+    ];
+}
+
 function require_auth(): void
 {
     if (current_user() === null) {

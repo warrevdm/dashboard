@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../app/bootstrap.php';
+refresh_current_user_access();
 require_auth();
 require_once __DIR__ . '/../app/overdue_rentals.php';
 require_once __DIR__ . '/../app/reservation_edit.php';

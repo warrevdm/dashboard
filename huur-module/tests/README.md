@@ -61,7 +61,13 @@ Controleert dagselectie in Europe/Brussels, retourgrens, fietspakketten, HTML/JS
 ```bash
 node --experimental-wasm-jspi huur-module/tests/no-show-migration.cjs
 node --experimental-wasm-jspi huur-module/tests/no-show.cjs
+node --experimental-wasm-jspi huur-module/tests/no-show-permissions.cjs
 node --experimental-wasm-jspi huur-module/tests/no-show-contracts.cjs
 ```
 
 Controleert migratie met bestaande dossiers, huur/testbeperkingen, medewerkersrechten, CSRF, vrijgeven/heropenen met beschikbaarheidscontrole, behoud van betalingen/historiek en blokkeren van ondertekening (ook bij een al geopend scherm).
+
+De rechtencontroles gebruiken fictieve medewerkeraccounts, inclusief een oude
+boekhoudsessie na wijziging naar Medewerker. Ze controleren beide statusroutes,
+dossiers van collega's, intrekken van rechten, inactieve/verwijderde accounts
+en behoud van de bestaande aanmelding en CSRF-controle.

@@ -1,5 +1,23 @@
 # Niet opgedaagd (no-show)
 
+## Medewerkers en bestaande aanmeldsessies
+
+Beheerders én medewerkers kunnen een no-show registreren en gecontroleerd
+heropenen, ook wanneer een collega het dossier heeft aangemaakt. Boekhouding
+behoudt leesrechten.
+
+Bij het openen van een dossier en bij statuswijzigingen worden de actuele rol
+en accountstatus uit de database overgenomen in de bestaande aanmeldsessie.
+Een oude boekhoudrol blijft daardoor niet verhinderen dat een medewerker de
+no-showkeuze gebruikt. Omgekeerd blijven ingetrokken rechten niet actief.
+De aanmelding en CSRF-token blijven behouden voor actieve accounts.
+
+Beide statusroutes gebruiken dezelfde handler. Deze controle verandert de
+voorwaarden niet: Huur/Test, Gereserveerd/Bevestigd, vanaf het startuur en nog
+geen fiets teruggebracht. Een werkelijk afgehaalde fiets is geen no-show.
+
+## Gebruik
+
 Open vanuit de planning het dossier. Kies **Niet opgedaagd (no-show)** bij **Status wijzigen** of in **Dossier aanpassen → Status**. Je kunt ook **Klant niet komen opdagen?** openklappen. Vanaf het afgesproken startuur kan een medewerker of beheerder bevestigen dat de klant niet is opgedaagd. Een reden is optioneel, maximaal 1000 tekens.
 
 Dit is mogelijk bij Huur en Test met status Gereserveerd of Bevestigd. Een afgehaalde, teruggebrachte of geannuleerde reservatie kan geen no-show worden. Er is geen automatische detectie: een medewerker controleert dit zelf.
